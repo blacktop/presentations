@@ -14,6 +14,6 @@ cd presentations
 open index.html
 ```
 
-Or via the PDF 
+Or via the PDF *(without the awesome animations 😔)*
 
 - [AnatomyOfLockdownMode.pdf](https://github.com/blacktop/presentations/blob/main/0x41con_2023/PDF/AnatomyOfLockdownMode.pdf)
