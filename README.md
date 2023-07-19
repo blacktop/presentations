@@ -4,7 +4,7 @@
 
 ### [blacktop.github.io/presentations](https://blacktop.github.io/presentations/)
 
-> ⚠️ **NOTE:** I attempted to utilize the Keynote.app's export to HTML feature, but it seems to have created files too big for most browsers to handle.  
+> ⚠️ **NOTE:** Ironically this site won't render when you have Lockdown Mode enabled 💀  
 
 So to view the animations you can view locally:
 
