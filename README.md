@@ -4,7 +4,7 @@
 
 ### [blacktop.github.io/presentations](https://blacktop.github.io/presentations/)
 
-> ⚠️ **NOTE:** Ironically this site won't render when you have Lockdown Mode enabled 💀  
+> ⚠️ **NOTE:** Ironically this site won't render the slides when you have Lockdown Mode enabled 💀  
 
 So to view the animations you can view locally:
 
