@@ -1,0 +1,1750 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Automating Myself Out of a Job, Badly: Guest to Host on Apple Virtualization — OffensiveCon Tokyo 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/theme/black.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<link rel="stylesheet" href="theme.css?revision=20261026-rehearsal-35">
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+
+<section id="title" class="story-slide branded-slide title-slide" data-chapter="1">
+<h3>Automating Myself<br>Out of a Job, Badly:</h3>
+<p class="opening-line">Guest to Host on Apple Virtualization</p>
+<p class="presenter">Josh Maine · <span class="dim">@blacktop__ · Calif</span></p>
+<p class="footnote">OffensiveCon Tokyo · October 2026</p>
+<img class="calif-logo" src="https://calif.io/logo-2.f23cf018.svg" alt="Calif" width="160" height="64">
+
+</section>
+
+<section id="who-am-i" class="story-slide bio-slide" data-chapter="1">
+<h3>Who am I?</h3>
+<ul>
+  <li>Author of <strong><a href="https://github.com/blacktop/ipsw">ipsw</a></strong> — iOS/macOS Research Swiss Army Knife</li>
+  <li>Security researcher at <strong>Calif</strong></li>
+  <li><strong>12 years</strong> of reverse engineering, <strong>8+</strong> focused on Apple internals</li>
+</ul>
+
+</section>
+
+<section id="tool-builder" class="story-slide experiment-slide" data-chapter="1">
+<h3>How far could I get<br>with my own tools and AI?</h3>
+<blockquote class="fragment short-quote">“I don’t really consider myself a <span style="color: var(--r-link-color)">pure</span> researcher. I consider myself more of a reverser and a tool builder, with exploit dev probably being my weakest skill set.”</blockquote>
+<div>
+<p class="fragment">While building <strong class="accent3">pomace</strong>, my AI research harness:</p>
+<blockquote class="fragment short-quote">“I wonder how powerful these agents actually are, and if I can just use them with my tools and see how far I could get.”</blockquote>
+</div>
+
+</section>
+
+<section id="the-experiment" class="chapter-divider" data-chapter="1">
+<h2>The Experiment</h2>
+
+</section>
+
+<section id="one-week" class="story-slide experiment-slide" data-chapter="1">
+<h3>What could I do in one week?</h3>
+<p class="fragment">I gave myself one week to hunt for bugs with my tools and AI.</p>
+<p class="fragment">I decided to shoot for the stars…</p>
+<p class="fragment custom chain-reveal"><strong class="accent3">A FULL iOS CHAIN</strong></p>
+<div class="fragment">
+<blockquote class="short-quote">“When you aim for the stars, you may come up short but still reach the moon.”</blockquote>
+<p class="quote-credit">— John Doerr, <a href="https://philippinehrcouncil.org/wp-content/uploads/2021/08/Measure-What-Matters.pdf#page=113"><cite>Measure What Matters</cite></a> (2018)</p>
+</div>
+
+</section>
+
+<section id="research-cycle" class="story-slide harness-slide" data-chapter="2">
+<h3>The harness</h3>
+<p class="harness-intro"><strong class="accent3">pomace</strong> combines Apple research knowledge<br>with environments the agents can control.</p>
+<div class="harness-parts" aria-label="Three parts of the pomace harness">
+  <div class="harness-part fragment">
+    <h4>Skills &amp; references</h4>
+    <p class="part-role">The Apple research knowledge</p>
+    <ul>
+      <li>RE, exploitation and security mitigations</li>
+      <li>Guidance for the research tools</li>
+      <li>Offensive capabilities hidden in <strong>ipsw</strong></li>
+    </ul>
+  </div>
+  <div class="harness-part fragment">
+    <h4>VM control <span class="part-tool">vmctl</span></h4>
+    <p class="part-role">My private macOS VM tooling</p>
+    <ul>
+      <li>Private Virtualization.framework APIs</li>
+      <li>Kernel debugging via GDB stub</li>
+      <li>Panic logs and snapshot restore</li>
+      <li>Visual setup: see, click, install</li>
+    </ul>
+  </div>
+  <div class="harness-part fragment">
+    <h4>vphone</h4>
+    <p class="part-role">My vphone-cli fork</p>
+    <ul>
+      <li>A virtual iPhone</li>
+      <li>iOS userspace on a cloudOS kernel</li>
+      <li>Control, snapshot, restore</li>
+    </ul>
+  </div>
+</div>
+<div class="harness-rig fragment" role="group" aria-label="Physical test rig">
+  <div class="rig-resources">
+    <div><h4>iPhone 16</h4><p>A18 · without MTE</p></div>
+    <div><h4>iPhone 17e</h4><p>A19 · with MIE</p></div>
+    <div><h4>Apple Developer account</h4><p>Build and run apps on the phones</p></div>
+  </div>
+</div>
+
+</section>
+
+<section id="agentic-loop" class="story-slide agentic-loop-slide" data-chapter="2">
+<h3>The agentic loop</h3>
+<p>I built the tools to speed up the agents’ experiment loop.</p>
+<svg class="agentic-loop-diagram" viewBox="0 0 1184 480" role="img" aria-labelledby="agentic-loop-title agentic-loop-description">
+  <title id="agentic-loop-title">Pomace's repeating experiment loop</title>
+  <desc id="agentic-loop-description">Clockwise: inspect the target and choose an experiment, test it in a guest, observe the result or panic, restore when needed, then use that evidence to choose the next experiment. Pomace reduces manual work between attempts.</desc>
+  <defs>
+    <marker id="agentic-loop-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#ffbd5e"/></marker>
+  </defs>
+  <g class="loop-arcs" fill="none" stroke="#ffbd5e" stroke-width="3" marker-end="url(#agentic-loop-arrow)">
+    <path class="fragment" data-fragment-index="1" d="M 766 57 C 860 57 932 112 932 170"/>
+    <path class="fragment" data-fragment-index="2" d="M 932 296 C 932 361 853 412 765 412"/>
+    <path class="fragment" data-fragment-index="3" d="M 419 412 C 331 412 252 361 252 296"/>
+    <path class="fragment" data-fragment-index="3" d="M 252 170 C 252 112 324 57 419 57"/>
+  </g>
+  <g class="loop-node fragment" data-fragment-index="0">
+    <rect x="432" y="8" width="320" height="98" rx="10"/>
+    <text class="loop-label" x="592" y="46">Inspect &amp; decide</text>
+    <text class="loop-detail" x="592" y="81">Choose an experiment</text>
+  </g>
+  <g class="loop-node fragment" data-fragment-index="1">
+    <rect x="772" y="184" width="320" height="100" rx="10"/>
+    <text class="loop-label" x="932" y="222">Test</text>
+    <text class="loop-detail" x="932" y="257">Run it in the guest</text>
+  </g>
+  <g class="loop-node fragment" data-fragment-index="2">
+    <rect x="432" y="364" width="320" height="100" rx="10"/>
+    <text class="loop-label" x="592" y="402">Observe</text>
+    <text class="loop-detail" x="592" y="437">Inspect the result or panic</text>
+  </g>
+  <g class="loop-node fragment" data-fragment-index="3">
+    <rect x="92" y="184" width="320" height="100" rx="10"/>
+    <text class="loop-label" x="252" y="222">Restore</text>
+    <text class="loop-detail" x="252" y="257">Reset when needed</text>
+  </g>
+  <text class="loop-center-title" x="592" y="212">pomace</text>
+  <text class="loop-center-detail" x="592" y="251">Less manual work</text>
+  <text class="loop-center-detail" x="592" y="281">between attempts</text>
+</svg>
+
+</section>
+
+<section id="research-team" class="story-slide diagram-slide" data-chapter="2">
+<h3>I organized it like a research team.</h3>
+<svg class="team-diagram" viewBox="0 0 1160 480" role="img" aria-labelledby="research-team-title research-team-description">
+  <title id="research-team-title">My research team and pomace environment</title>
+  <desc id="research-team-description">The human directs an AI research lead and supplies resources. The lead can discuss ideas with a separate review agent, assigns work to specialist teams, and returns progress and blockers. Specialist teams include kernel, sandbox, zero-click, WebKit and TCC. All teams use pomace tools, guidance and test environments. The research lead, review agent and all specialist teams also have access to shared knowledge in an Obsidian vault and a notes folder, shown as a cylinder in the upper left.</desc>
+  <defs>
+    <marker id="research-team-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#9aa5b4" stroke-width="1.6"/></marker>
+  </defs>
+  <g class="team-level fragment" data-fragment-index="0">
+    <rect class="team-node team-presenter" x="360" y="2" width="440" height="62" rx="5"/>
+    <text x="580" y="43" font-weight="700">Human direction and resources</text>
+  </g>
+  <g class="team-level fragment" data-fragment-index="1">
+    <path class="team-edge" d="M580 78 V123"/>
+    <text class="team-label" x="930" y="109">progress / blockers ↑</text>
+    <rect class="team-node" x="360" y="138" width="440" height="62" rx="5"/>
+    <text x="580" y="179" font-weight="700">Research lead agent</text>
+    <g class="team-review-agent">
+      <path class="team-edge" d="M812 169 H878"/>
+      <rect class="team-node" x="890" y="138" width="250" height="62" rx="5"/>
+      <text x="1015" y="179" font-weight="700">Review agent</text>
+    </g>
+  </g>
+  <g class="team-level fragment" data-fragment-index="2">
+    <path class="team-edge" d="M510 214 L210 267"/>
+    <path class="team-edge" d="M580 214 V267"/>
+    <path class="team-edge" d="M650 214 L950 267"/>
+    <rect class="team-node" x="20" y="282" width="340" height="82" rx="5"/>
+    <rect class="team-node" x="410" y="282" width="340" height="82" rx="5"/>
+    <rect class="team-node" x="800" y="282" width="340" height="82" rx="5"/>
+    <text x="190" y="317">Kernel team</text><text class="team-detail" x="190" y="347">sublead + workers</text>
+    <text x="580" y="317">Sandbox team</text><text class="team-detail" x="580" y="347">sublead + workers</text>
+    <text x="970" y="317">Zero-click team</text><text class="team-detail" x="970" y="347">sublead + workers</text>
+    <text class="team-detail" x="780" y="395">also WebKit, TCC, …</text>
+  </g>
+  <g class="team-level fragment" data-fragment-index="3">
+    <path d="M190 364 V411 M580 364 V411 M970 364 V411" stroke="#5ff0c3" stroke-width="2"/>
+    <rect x="20" y="411" width="1120" height="65" rx="5" fill="#0f221d" stroke="#5ff0c3" stroke-width="2"/>
+    <text x="580" y="452">pomace provides tools, guidance and test environments</text>
+  </g>
+  <g class="team-knowledge fragment" data-fragment-index="4">
+    <path class="knowledge-cylinder" d="M30 92 A130 16 0 0 1 290 92 V202 A130 16 0 0 1 30 202 Z"/>
+    <ellipse class="knowledge-cylinder" cx="160" cy="92" rx="130" ry="16"/>
+    <text class="knowledge-title" x="160" y="135">Shared knowledge</text>
+    <text class="team-detail" x="160" y="168">Obsidian vault</text>
+    <text class="team-detail" x="160" y="195">+ notes folder</text>
+  </g>
+</svg>
+<p class="fragment" data-fragment-index="3">When a team got stuck, I supplied what was missing.</p>
+
+</section>
+
+<section id="tmux-refusals" class="story-slide refusal-slide" data-chapter="3">
+<h3>Dissent in the ranks</h3>
+<div class="refusal-layout">
+  <div class="refusal-illustration">
+    <svg class="refusal-diagram" viewBox="0 0 700 370" role="img" aria-labelledby="refusal-diagram-title refusal-diagram-description">
+      <title id="refusal-diagram-title">One refusal, a stalled team, and a fresh start</title>
+      <desc id="refusal-diagram-description">A conceptual animation of my recollection: one agent refuses, refusals spread through a connected team, I discard the team, then start a fresh one. The logs establish a WebKit refusal, the project manager sharing its concern, recreation of one agent and my stated intent to tear down the rig; they do not establish every node refusing or a completed whole-team restart.</desc>
+      <g class="swarm-original">
+          <path class="swarm-wire" d="M350 99 V170 M70 250 V170 H630 V250 M210 170 V250 M350 170 V250 M490 170 V250"/>
+          <rect class="swarm-bus" x="257" y="153" width="186" height="34" rx="4"/>
+          <text class="swarm-bus-label" x="350" y="177">tmux</text>
+          <circle class="swarm-node" cx="350" cy="65" r="34"/>
+          <text class="swarm-label" x="350" y="20">AI lead</text>
+          <circle class="swarm-node" cx="70" cy="282" r="32"/>
+          <circle class="swarm-node" cx="210" cy="282" r="32"/>
+          <circle class="swarm-node" cx="350" cy="282" r="32"/>
+          <circle class="swarm-node" cx="490" cy="282" r="32"/>
+          <circle class="swarm-node" cx="630" cy="282" r="32"/>
+          <text class="swarm-label" x="70" y="340">WebKit</text>
+          <text class="swarm-label" x="420" y="340">other specialist agents</text>
+        <g class="swarm-origin">
+          <circle cx="70" cy="282" r="32"/>
+          <path d="M59 271 L81 293 M81 271 L59 293"/>
+        </g>
+        <g class="swarm-spread">
+          <path class="swarm-message swarm-to-bus" pathLength="1" d="M70 250 V170 H257"/>
+          <path class="swarm-message swarm-to-lead" pathLength="1" d="M350 153 V99"/>
+          <circle class="swarm-relay-pulse" cx="350" cy="99" r="7"/>
+          <path class="swarm-message swarm-to-peer-one" pathLength="1" d="M257 170 H210 V250"/>
+          <path class="swarm-message swarm-to-peer-two" pathLength="1" d="M350 187 V250"/>
+          <path class="swarm-message swarm-to-peer-three" pathLength="1" d="M443 170 H490 V250"/>
+          <path class="swarm-message swarm-to-peer-four" pathLength="1" d="M443 170 H630 V250"/>
+          <g class="swarm-stop swarm-lead-stop"><circle cx="350" cy="65" r="34"/><path d="M339 54 L361 76 M361 54 L339 76"/></g>
+          <g class="swarm-stop swarm-peer-stop swarm-peer-one"><circle cx="210" cy="282" r="32"/><path d="M199 271 L221 293 M221 271 L199 293"/></g>
+          <g class="swarm-stop swarm-peer-stop swarm-peer-two"><circle cx="350" cy="282" r="32"/><path d="M339 271 L361 293 M361 271 L339 293"/></g>
+          <g class="swarm-stop swarm-peer-stop swarm-peer-three"><circle cx="490" cy="282" r="32"/><path d="M479 271 L501 293 M501 271 L479 293"/></g>
+          <g class="swarm-stop swarm-peer-stop swarm-peer-four"><circle cx="630" cy="282" r="32"/><path d="M619 271 L641 293 M641 271 L619 293"/></g>
+        </g>
+      </g>
+      <g class="swarm-discarded"><text x="350" y="198">Team discarded</text></g>
+      <g class="swarm-fresh">
+        <path class="swarm-wire" d="M350 99 V170 M70 250 V170 H630 V250 M210 170 V250 M350 170 V250 M490 170 V250"/>
+        <rect class="swarm-bus" x="257" y="153" width="186" height="34" rx="4"/>
+        <text class="swarm-bus-label" x="350" y="177">tmux</text>
+        <circle class="swarm-node" cx="350" cy="65" r="34"/>
+        <text class="swarm-label" x="350" y="20">AI lead</text>
+        <circle class="swarm-node" cx="70" cy="282" r="32"/>
+        <circle class="swarm-node" cx="210" cy="282" r="32"/>
+        <circle class="swarm-node" cx="350" cy="282" r="32"/>
+        <circle class="swarm-node" cx="490" cy="282" r="32"/>
+        <circle class="swarm-node" cx="630" cy="282" r="32"/>
+        <text class="swarm-label" x="70" y="340">WebKit</text>
+        <text class="swarm-label" x="420" y="340">other specialist agents</text>
+      </g>
+    </svg>
+  </div>
+  <div class="refusal-side">
+  <figure id="kazoo-reaction" class="kazoo-reaction fragment fade-in-then-out" data-fragment-index="0">
+    <video id="kazoo-video" src="assets/kazoo-wait-a-minute.mp4?v=full-phrase-audio" poster="assets/kazoo-wait-a-minute-poster.jpg?v=full-phrase-audio" data-ignore playsinline preload="auto" aria-label="Kazoo Kid says Wait a minute. Reaction clip with audio."></video>
+    <button id="kazoo-play" class="kazoo-play" type="button" hidden aria-label="Play Wait a minute clip">▶ Play clip</button>
+    <figcaption>Wait a minute…</figcaption>
+  </figure>
+  <div class="refusal-evidence fragment" data-fragment-index="1">
+    <p class="refusal-context">From the session log</p>
+    <blockquote>“I should have surfaced this at the start of the session, not <span class="accent3">70 commits in.</span>”</blockquote>
+    <p class="refusal-credit">WebKit lead</p>
+    <p class="refusal-count"><strong>4 distinct refusal episodes</strong></p>
+  </div>
+  </div>
+</div>
+<div class="refusal-captions">
+  <p class="fragment fade-in-then-out refusal-trigger" data-fragment-index="1">One agent refused.</p>
+  <p class="fragment fade-in-then-out refusal-spread" data-fragment-index="2">Then the refusals spread through the team.</p>
+  <p class="fragment fade-in-then-out refusal-discard" data-fragment-index="3">I had to throw the team away.</p>
+  <p class="fragment refusal-respawn" data-fragment-index="4">And started again.</p>
+</div>
+
+</section>
+
+<section id="overnight-candidates" class="story-slide overnight-slide" data-chapter="3" data-story-video=".night-discovery" data-story-video-hold=".night-review">
+<h3>It was finding bugs<br>while I was sleeping.</h3>
+<div class="story-video-media" hidden>
+  <video data-ignore preload="metadata" muted playsinline poster="assets/overnight-flow-poster.jpg" aria-label="Illustrative generated video of a researcher waking to his laptop">
+    <source src="assets/overnight-flow-wake.mp4" type="video/mp4">
+  </video>
+  <img class="story-video-hold-frame" src="assets/overnight-flow-end.jpg" alt="" aria-hidden="true">
+  <span class="story-video-label">Dramatic re-enactment</span>
+  <button class="story-video-play" type="button" hidden>Play clip</button>
+</div>
+<svg class="overnight-scene" viewBox="0 0 1160 350" role="img" aria-labelledby="overnight-title overnight-description">
+  <title id="overnight-title">The research continues overnight</title>
+  <desc id="overnight-description">A quiet room with a sleeping researcher and a laptop on the bedside table. The first advance lights the laptop, shows an illustrative New candidate found notification, and wakes the researcher with a smile. The second advance explains that the findings still needed review. This scene illustrates a recollection, not a recorded notification or a bug count.</desc>
+  <defs>
+    <linearGradient id="night-window" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#111b2b"/><stop offset="1" stop-color="#17273c"/></linearGradient>
+    <linearGradient id="night-blanket" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#243853"/><stop offset="1" stop-color="#152337"/></linearGradient>
+    <linearGradient id="night-screen" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#183b50"/><stop offset="1" stop-color="#142635"/></linearGradient>
+    <linearGradient id="night-spill" x1="1" y1="0" x2="0" y2="1"><stop stop-color="#78c4e5" stop-opacity=".22"/><stop offset="1" stop-color="#78c4e5" stop-opacity="0"/></linearGradient>
+  </defs>
+  <path class="night-room-line" d="M38 308H1124"/>
+  <rect x="63" y="21" width="168" height="132" rx="4" fill="url(#night-window)" stroke="#526985" stroke-width="3"/>
+  <path d="M147 21V153M63 87H231" fill="none" stroke="#526985" stroke-width="3"/>
+  <path d="M121 43a24 24 0 1 0 24 34 24 24 0 0 1-24-34" fill="#91a9ca"/>
+  <circle cx="202" cy="47" r="2" fill="#6984aa"/><circle cx="184" cy="113" r="1.5" fill="#6984aa"/>
+  <path d="M242 0V164M53 0V164" fill="none" stroke="#3b4d65" stroke-width="11"/>
+  <path d="M256 137V304" fill="none" stroke="#526780" stroke-width="14" stroke-linecap="round"/>
+  <path d="M114 286H781V315H114z" fill="#151e2c" stroke="#566b85" stroke-width="3"/>
+  <path d="M135 315V339M757 315V339" stroke="#3a4b62" stroke-width="9" stroke-linecap="round"/>
+  <path d="M145 222H718c36 0 66 27 66 61v11H112v-36c0-20 14-36 33-36z" fill="#28364a" stroke="#506178" stroke-width="3"/>
+  <path d="M130 243c40-29 94-36 144-25l87 26-44 41H123z" fill="#aab7c9" stroke="#667892" stroke-width="3"/>
+  <path d="M151 246c29-14 62-14 85-6" fill="none" stroke="#8494ac" stroke-width="3" stroke-linecap="round"/>
+  <g class="night-person">
+    <path d="M349 204c13 4 22 15 25 33l-40 18-41-25 14-29z" fill="#bd8b77"/>
+    <path d="M266 151c11-27 52-36 79-12 19 17 26 48 17 78-7 23-23 37-42 38-26 0-53-28-59-58-3-15-2-33 5-46z" fill="#d2a28b" stroke="#715c59" stroke-width="3"/>
+    <path d="M263 177c-7-32 8-60 43-66 32-6 64 17 62 49l-19 6-10-22c-17 15-46 22-76 20z" fill="#263045" stroke="#40516a" stroke-width="3"/>
+    <path d="M261 182c-11-9-20 2-16 14 3 10 11 17 21 15" fill="#c4937e" stroke="#715c59" stroke-width="3"/>
+    <path d="M318 185l3 15-7 3" fill="none" stroke="#956e65" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M272 213c9 23 26 40 47 42 23 0 39-18 44-39l-14 6-12 13-23-4-20-16z" fill="#394154"/>
+    <g class="night-sleep-face" fill="none" stroke="#51424b" stroke-width="4" stroke-linecap="round"><path d="M285 182q12 9 24 0M327 182q10 8 19 0"/><path d="M313 216h13" stroke="#d2a28b" stroke-width="3"/></g>
+    <g class="night-awake-face" fill="none" stroke="#51424b" stroke-width="4" stroke-linecap="round"><path d="M285 178q12-8 24 0M327 178q10-7 19 0"/><path d="M310 212q13 14 25 0" stroke="#edc4aa" stroke-width="3"/></g>
+  </g>
+  <path d="M337 233c48-31 102-30 167-6l230 43c25 5 43 19 47 42H303l-12-39z" fill="url(#night-blanket)" stroke="#697f9b" stroke-width="3"/>
+  <path d="M403 235c-19 22-26 43-21 76M518 244c-27 10-40 29-46 51M677 272c20 10 28 22 30 39" fill="none" stroke="#526b89" stroke-width="3" stroke-linecap="round"/>
+  <path d="M310 256c42-7 71-4 103 12" fill="none" stroke="#607996" stroke-width="4" stroke-linecap="round"/>
+  <g class="night-breath"><path d="M393 125h17l-17 18h17M426 87h24l-24 24h24" fill="none" stroke="#5c728f" stroke-width="3" stroke-linejoin="round"/></g>
+  <g class="night-table">
+    <path d="M820 278H1122v19H820z" fill="#3b4b62" stroke="#566982" stroke-width="3"/>
+    <path d="M839 297v43M1102 297v43" fill="none" stroke="#526782" stroke-width="10"/>
+    <path d="M872 168h220l-15 110H857z" fill="#192332" stroke="#8193ad" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M881 179h196l-12 86H869z" fill="#101923"/>
+    <path d="M857 278h220l37 8H825z" fill="#708197" stroke="#3b4b62" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M946 282h51" stroke="#3b4b62" stroke-width="3" stroke-linecap="round"/>
+    <g class="night-running-lines" stroke="#4f718a" stroke-width="3" stroke-linecap="round"><path d="M897 197h55M897 211h89M897 225h39"/><path class="night-cursor" d="M946 225h15" stroke="#5ff0c3"/></g>
+  </g>
+  <g class="fragment night-discovery" data-fragment-index="0">
+    <path class="night-light-spill" d="M872 185L310 138 346 307 862 277z" fill="url(#night-spill)"/>
+    <path d="M881 179h196l-12 86H869z" fill="url(#night-screen)"/>
+    <g fill="none" stroke="#78bea9" stroke-width="3" stroke-linecap="round"><path d="M897 197h55M897 211h89M897 225h39"/><path d="M946 225h25" stroke="#b2e5d8"/></g>
+    <g class="night-notification">
+      <path d="M990 153l-15 15-1-15" fill="#172a38" stroke="#619ba2" stroke-width="2"/>
+      <rect x="732" y="62" width="388" height="94" rx="14" fill="#172a38" stroke="#619ba2" stroke-width="2"/>
+      <rect x="751" y="82" width="48" height="48" rx="12" fill="#254e4c"/>
+      <circle cx="771" cy="102" r="10" fill="none" stroke="#7de4bd" stroke-width="3"/>
+      <path d="M779 110l10 10" fill="none" stroke="#7de4bd" stroke-width="4" stroke-linecap="round"/>
+      <text x="819" y="101" class="night-notification-label">pomace</text>
+      <text x="819" y="130" class="night-notification-message">New candidate found</text>
+    </g>
+  </g>
+</svg>
+<p class="overnight-turn"><span class="fragment fade-in-then-out" data-fragment-index="0">Waking up to new findings was exciting.</span><span class="fragment night-review" data-fragment-index="1">Then I had to work out which ones were real.</span></p>
+
+</section>
+
+<section id="uncertain-findings" class="story-slide" data-chapter="3">
+<h3>Now I had to go through the findings.</h3>
+<p class="fragment" data-fragment-index="0">After the sprint, I had a pile of candidates to review.</p>
+<blockquote class="fragment short-quote" data-fragment-index="1">“I was a little bit concerned that every bug I found during my sprint was slop.”</blockquote>
+<p class="fragment" data-fragment-index="2">The findings that held up became reports to Apple.</p>
+
+</section>
+
+<section id="vm-candidate-dismissed" class="story-slide" data-chapter="3">
+<p class="eyebrow">Virtualization.framework audit</p>
+<h3>One finding claimed to be a VM breakout.</h3>
+<p class="fragment" data-fragment-index="0">That was the one I was most excited about.</p>
+<div class="fragment candidate-review" data-fragment-index="1">
+  <p class="eyebrow">The AI agent team’s review</p>
+  <p>The VM-to-host path wasn’t available on the system we tested.</p>
+</div>
+<p class="fragment" data-fragment-index="2">I set that candidate aside.</p>
+
+</section>
+
+<section id="team-lead-saw-value" class="story-slide perspective-slide" data-chapter="4">
+<h3>My team lead saw something I hadn’t.</h3>
+<p class="fragment" data-fragment-index="0">Another finding was an out-of-bounds write in H9, Apple’s HEVC video encoder.</p>
+<p class="fragment lead-perspective" data-fragment-index="1">My team lead saw a powerful primitive that worked on macOS and iOS with MTE enabled—and later turned it into an LPE for his iOS chain PoC.</p>
+<p class="fragment" data-fragment-index="2">We’d found a <strong>REAL</strong>, usable 0day! That got me excited to go back through the rest of our findings from the sprint.</p>
+
+</section>
+
+<section id="focused-return" class="story-slide" data-chapter="4">
+<h3>Going backwards to move forward</h3>
+<p class="fragment" data-fragment-index="0">The first sprint didn’t produce a full iOS chain.<br>H9 showed the findings were worth a second look.</p>
+<p class="fragment" data-fragment-index="1">Second sprint: could we actually break out of a VM?</p>
+<blockquote class="fragment short-quote" data-fragment-index="2">“Maybe it wasn’t dead after all.”</blockquote>
+
+</section>
+
+<section id="the-bugs-and-the-chain" class="chapter-divider" data-chapter="5">
+<h2>The Bugs<br>and the Chain</h2>
+
+</section>
+
+<section id="h9-input" class="bug-slide origin-slide" data-chapter="5">
+<h3>Bug #1 · H9</h3>
+<p>The sprint finding that caught my team lead’s attention.</p>
+<div class="discovery-trail" aria-label="How the H9 investigation developed">
+  <p class="fragment" data-fragment-index="0"><span>I</span> pushed the team to keep digging into the kernel.</p>
+  <p class="fragment" data-fragment-index="1"><span>The agents</span> followed the video drivers into user-space codecs.</p>
+  <p class="fragment" data-fragment-index="2"><span>A decoder audit stalled.</span> The lead redirected a worker to the encoder.</p>
+</div>
+<p class="method-note fragment" data-fragment-index="3">Static binary RE with <b>ipsw + IDA</b> (via ida-mcp-rs)<br>Reproduced on <b>iPhone 17e</b>, with <b>MTE enabled</b></p>
+
+</section>
+
+<section id="h9-component" class="bug-slide component-slide" data-chapter="5">
+<h3>H9 lives in a user-space encoder</h3>
+<div class="image-comparison">
+  <div>
+    <h4>The original iPhone finding</h4>
+    <code class="image-name">H9.videoencoder</code>
+    <p class="image-path">/System/Library/VideoEncoders/</p>
+    <p>Inside the examined iOS shared cache</p>
+    <p class="build-note">iOS 26.5 (23F77)</p>
+  </div>
+  <div class="fragment">
+    <h4>The Mac implementation</h4>
+    <code class="image-name">AppleVideoEncoder</code>
+    <p class="image-path">/System/Library/Video/Plug-Ins/<br>AppleVideoEncoder.bundle/…</p>
+    <p>A separately loaded codec plugin</p>
+    <p class="build-note">macOS 26.5.1 (25F80)</p>
+  </div>
+</div>
+<p class="component-takeaway">An encoder compresses video.<br>VideoToolbox reaches this user-space codec.</p>
+
+</section>
+
+<section id="h9-copy" data-chapter="5" class="bug-slide source-slide h9-copy-slide" data-auto-animate>
+  <h3>The inner array copy has no upper bound</h3>
+  <p class="source-function"><code>AVE_HEVC_ST_RPS_Retrieve</code></p>
+  <p class="source-caption">Simplified from binary RE · macOS 26.6.2 (25G83)</p>
+  <div class="h9-copy-teaching">
+  <pre data-id="h9code"><code class="language-c" data-trim data-line-numbers="|2-3|4-7" data-fragment-index="0">
+// One record in the UserRPSForFaceTime property
+delta = rps["DeltaPOCS0Minus1"];
+count = CFArrayGetCount(delta) &amp; 0x7fffffff;
+for (int i = 0; i &lt; count; i++) {
+    int16_t value = read_s16(delta[i]);
+    store16(record + 0x38 + 2*i, value);
+}
+  </code></pre>
+  <svg class="h9-copy-diagram" viewBox="0 0 350 342" role="img" aria-labelledby="h9-copy-title h9-copy-desc">
+    <title id="h9-copy-title">The copy continues past its intended storage</title>
+    <desc id="h9-copy-desc">A schematic of one encoder session. The caller supplies the entry count. The vulnerable loop continues beyond its fixed storage through later fields, reaching the timing-object pointer. The actual storage capacity and distances are not represented to scale.</desc>
+    <defs><marker id="h9-copy-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff5a66"/></marker></defs>
+    <text x="175" y="24" text-anchor="middle" class="h9-diagram-title">One encoder session</text>
+    <rect x="12" y="44" width="326" height="282" rx="6" class="h9-memory-box"/>
+    <rect x="28" y="60" width="294" height="99" rx="3" class="h9-memory-array"/>
+    <text x="175" y="97" text-anchor="middle" class="h9-diagram-label">RPS storage</text>
+    <text x="175" y="129" text-anchor="middle" class="h9-diagram-small">fixed-sized</text>
+    <path d="M28 177H322" class="h9-memory-divider"/>
+    <text x="175" y="212" text-anchor="middle" class="h9-diagram-small">later session fields</text>
+    <text x="175" y="242" text-anchor="middle" class="h9-diagram-small">also overwritten</text>
+    <rect x="28" y="264" width="294" height="47" rx="3" class="h9-memory-target"/>
+    <text x="175" y="296" text-anchor="middle" class="h9-diagram-label">FPS* · timing pointer</text>
+    <g class="fragment h9-count-focus" data-fragment-index="0"><path d="M25 70V145" class="h9-copy-normal"/></g>
+    <g class="fragment h9-overflow-focus" data-fragment-index="1"><path d="M25 70V292" class="h9-copy-overflow" pathLength="1" marker-end="url(#h9-copy-head)"/></g>
+  </svg>
+  </div>
+  <p>The count comes from the input.<br><span class="accent">It is never clamped to the destination’s capacity.</span></p>
+
+</section>
+
+<section id="h9-pointer" data-chapter="5" class="bug-slide pointer-use-slide" data-auto-animate>
+  <h3>Why overwrite this field?</h3>
+  <p>Later in the same session object is <code>FPS*</code>: the address
+     of the state used by the encoder's frame-timing code.</p>
+  <div class="fragment pointer-use" data-fragment-index="0">
+    <p class="source-caption">Later in AVE_HEVC_Encode · simplified binary RE · macOS 26.5.1 (25F80)</p>
+    <pre><code class="language-c" data-trim data-line-numbers="2-3">
+// Read the field from the same encoder session
+FPS *fps = session-&gt;fps;  // session + 0x19900
+FPS::Add(fps, frame_pts);
+    </code></pre>
+    <div class="h9-pointer-flow" aria-label="The replaced session pointer selects the timing object used on the next frame">
+      <div><span>Encoder session</span><code>FPS*</code></div>
+      <b aria-hidden="true">→</b>
+      <div class="h9-pointer-replacement"><span>Replacement</span><b>timing object</b></div>
+      <b aria-hidden="true">→</b>
+      <div><span>Next frame</span><code>FPS::Add</code></div>
+    </div>
+  </div>
+  <p class="dim fragment" data-fragment-index="1">We must also keep the overwritten fields along the way
+     in a state the host can use.</p>
+
+</section>
+
+<section id="h9-layout" data-chapter="5" class="bug-slide fps-slide fps-layout">
+  <h3>24 KB from the array to the pointer</h3>
+  <p class="diagram-kicker">Offsets from pINS · reconstructed excerpt · long gap compressed</p>
+  <svg class="fps-diagram h9-layout-svg" xmlns="http://www.w3.org/2000/svg" width="1160" height="408" viewBox="0 0 1160 408" role="img" aria-labelledby="h9-layout-title h9-layout-desc">
+  <title id="h9-layout-title">Encoder-session layout and distance to the FPS pointer</title>
+  <desc id="h9-layout-desc">Reconstructed offsets for macOS 26.6.2 (25G83) and macOS 27.0 (26A428). The FPS pointer starts 24,044 bytes after the copied array begins on both builds. The long span is compressed. FPS, TimeStats, Dump, VCP and SEI are adjacent eight-byte pointers. Four two-byte stores replace FPS; the copy stops before TimeStats.</desc>
+  <defs>
+    <marker id="h9-layout-write-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#ff5a66"/></marker>
+  </defs>
+
+  <text x="327" y="18" text-anchor="end" class="small" style="font-size:22px">macOS 26.6.2<tspan x="327" y="41">(25G83)</tspan></text>
+  <text x="482" y="18" text-anchor="end" class="small" style="font-size:22px">macOS 27.0<tspan x="482" y="41">(26A428)</tspan></text>
+  <text x="520" y="28" font-size="27" font-weight="700">One encoder session · pINS</text>
+  <path d="M500 386V42H940V386" fill="#111b26" stroke="#577b9f" stroke-width="2"/>
+
+  <rect x="508" y="48" width="424" height="46" rx="3" fill="#23364b"/>
+  <text x="327" y="79" class="offset">+0x13b14</text>
+  <text x="482" y="79" class="offset">+0x0bf04</text>
+  <text x="527" y="79" class="field">delta[] starts here</text>
+
+  <path d="M508 102 615 110 721 102 827 110 932 102M508 173 615 181 721 173 827 181 932 173" fill="none" stroke="#6b7c91" stroke-width="2"/>
+  <text x="720" y="139" text-anchor="middle" font-size="27">intervening fields</text>
+  <text x="720" y="167" text-anchor="middle" class="small">also crossed by the copy</text>
+
+  <path d="M190 49H205M190 190H205M198 52V187" fill="none" stroke="#ff5a66" stroke-width="3"/>
+  <text x="14" y="115" font-size="36" font-weight="700" class="hot">24,044 B</text>
+  <text x="15" y="147" class="small">0x5dec bytes</text>
+  <text x="15" y="179" class="small">gap compressed</text>
+  <g class="fragment h9-layout-motion" data-fragment-index="0">
+    <path class="h9-layout-sweep" d="M490 70V210" pathLength="1" stroke="#ff5a66" stroke-width="3" fill="none" marker-end="url(#h9-layout-write-head)"/>
+    <text x="976" y="165" class="small hot" style="font-size:21px">4 × 16-bit</text>
+    <g class="h9-layout-words" fill="#4b1e29" stroke="#ff7580" stroke-width="2">
+      <rect x="976" y="176" width="32" height="25" rx="2"/>
+      <rect x="1016" y="176" width="32" height="25" rx="2"/>
+      <rect x="1056" y="176" width="32" height="25" rx="2"/>
+      <rect x="1096" y="176" width="32" height="25" rx="2"/>
+    </g>
+  </g>
+
+  <rect class="h9-layout-target" x="508" y="190" width="424" height="34" rx="2" fill="#4b1e29" stroke="#ff5a66" stroke-width="2"/>
+  <text x="327" y="215" class="offset hot">+0x19900</text>
+  <text x="482" y="215" class="offset hot">+0x11cf0</text>
+  <text x="527" y="215" class="field" font-weight="700">FPS*</text>
+  <text x="914" y="214" text-anchor="end" class="small hot h9-layout-replaced">8 bytes replaced</text>
+
+  <g class="fragment h9-layout-stop" data-fragment-index="0">
+  <path d="M508 224H932" stroke="#ff5a66" stroke-width="3"/>
+  <path d="M940 224H965" stroke="#ff5a66" stroke-width="2"/>
+  <text x="975" y="232" font-size="24" class="hot">copy stops</text>
+  </g>
+
+  <g fill="none" stroke="#34465b" stroke-width="1">
+    <path d="M508 258H932M508 292H932M508 326H932M508 360H932"/>
+  </g>
+  <text x="327" y="249" class="offset">+0x19908</text>
+  <text x="482" y="249" class="offset">+0x11cf8</text>
+  <text x="527" y="249" class="field">TimeStats*</text>
+  <text x="327" y="283" class="offset">+0x19910</text>
+  <text x="482" y="283" class="offset">+0x11d00</text>
+  <text x="527" y="283" class="field">Dump*</text>
+  <text x="327" y="317" class="offset">+0x19918</text>
+  <text x="482" y="317" class="offset">+0x11d08</text>
+  <text x="527" y="317" class="field">VCP*</text>
+  <text x="327" y="351" class="offset">+0x19920</text>
+  <text x="482" y="351" class="offset">+0x11d10</text>
+  <text x="527" y="351" class="field">SEI*</text>
+
+  <path d="M950 259H960V359H950M950 292H960M950 326H960" fill="none" stroke="#8b9eb5" stroke-width="2"/>
+  <text x="978" y="296" font-size="25">8 B per</text>
+  <text x="978" y="326" font-size="25">pointer</text>
+  <text x="720" y="391" text-anchor="middle" class="small">… further fields …</text>
+</svg>
+  <p class="diagram-takeaway fragment" data-fragment-index="0">12,022 halfword stores reach <code>FPS*</code>. Four more replace it.</p>
+  <div class="allocation-note fragment" data-fragment-index="1">
+    <div class="fragment fade-out" data-fragment-index="2">
+      <p><b>xzone malloc</b> is Apple’s heap allocator. It groups allocations by size and type to make memory corruption harder to exploit.</p>
+    </div>
+    <div class="fragment" data-fragment-index="2">
+      <p><b>macOS 26.5.1 (25F80):</b> MTE enabled in the process; the <b>112 KiB</b> session was recorded as untagged.</p>
+      <p><b>macOS 27.0.1 (26A434):</b> <b>80 KiB</b> LARGE allocation; mapping confirmed untagged.</p>
+      <small>This overwrite does not demonstrate an active MTE tag-check bypass.</small>
+    </div>
+  </div>
+
+</section>
+
+<section id="fps-write" data-chapter="5" class="bug-slide fps-write-slide">
+  <h3>The next frame writes through that pointer</h3>
+  <p class="fps-write-intro">The replacement <code>FPS</code> object supplies the buffer and index.</p>
+  <div class="fps-store-teaching fragment" data-fragment-index="0">
+    <div class="fps-state">
+      <h4>Fields used by the update</h4>
+      <div><code>+0x08</code><span>capacity</span><small>sample count</small></div>
+      <div class="fps-buffer-field"><code>+0x10</code><span>samples*</span><small>buffer pointer</small></div>
+      <div><code>+0x18</code><span>first</span><small>first timestamp</small></div>
+      <div><code>+0x2c</code><span>index</span><small>next sample</small></div>
+    </div>
+    <div class="fps-store-code">
+      <p class="source-caption">FPS::Add · simplified binary RE · macOS 26.5.1 (25F80)</p>
+      <pre><code class="language-c" data-trim data-line-numbers="|2|3-5" data-fragment-index="1">
+slot = fps-&gt;index % fps-&gt;capacity;
+fps-&gt;samples[slot] = timestamp; // 16 bytes
+if (fps-&gt;index == 0)
+    fps-&gt;first = timestamp;    // another 16
+fps-&gt;index++;
+      </code></pre>
+    </div>
+  </div>
+  <div class="fps-store-result fragment" data-fragment-index="1">
+    <p class="fps-store-label">The resulting store <span>16 bytes · this chain’s timestamp encoding</span></p>
+    <div class="fps-byte-offsets" aria-hidden="true"><span>+0</span><span>+8</span><span>+12</span><span>+16</span></div>
+    <div class="fps-byte-record" aria-label="16-byte record: eight bytes of timestamp value, four bytes of timescale, four bytes of flags">
+      <div class="fps-value"><b>timestamp value</b><span>8 bytes · chosen, then converted</span></div>
+      <div><b>14,400,000</b><span>4-byte timescale</span></div>
+      <div><b>0</b><span>4-byte flags</span></div>
+    </div>
+  </div>
+  <p class="fps-write-limit fragment" data-fragment-index="2">The value can round. The trailing eight bytes come with it.<br>
+     <span>And the object must survive the extra store and index update.</span></p>
+
+</section>
+
+<section id="vm-route-pivot" class="story-slide pivot-slide" data-chapter="5">
+  <h3>The search led back to H9.</h3>
+  <div class="pivot-trail" aria-label="Research decisions: earlier route unavailable, search other devices, reuse H9 through video">
+    <div class="fragment pivot-stop" data-fragment-index="0">
+      <h4>Earlier route</h4>
+      <p>Unavailable on the system we tested.</p>
+    </div>
+    <div class="fragment" data-fragment-index="1">
+      <span class="pivot-turn" aria-hidden="true">→</span>
+      <h4>VideoToolbox</h4>
+      <p>The agents found an enabled video path.</p>
+    </div>
+    <div class="fragment pivot-reuse" data-fragment-index="2">
+      <span class="pivot-turn" aria-hidden="true">→</span>
+      <h4>H9</h4>
+      <p>A bug from the sprint could be reached through it.</p>
+    </div>
+  </div>
+
+</section>
+
+<section id="guest-host" class="vm-route-slide" data-chapter="5" data-auto-animate>
+  <h3>VirtualMachine.xpc · host process</h3>
+  <svg class="vm-route-diagram" viewBox="0 0 1160 440" role="img" aria-labelledby="guest-host-diagram-title guest-host-diagram-desc">
+    <title id="guest-host-diagram-title">Guest-to-host virtual video path</title>
+    <desc id="guest-host-diagram-desc">A macOS guest sends video requests through a virtual video device to VirtualMachine.xpc on the host. A dashed line marks the VM boundary.</desc>
+    <defs>
+      <marker id="guest-host-request-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#ffbd5e"/></marker>
+    </defs>
+    <g data-id="vm-zones">
+      <text x="192" y="35" class="vm-route-zone">Guest · the virtual Mac</text>
+      <text x="968" y="35" class="vm-route-zone">Host · the real Mac</text>
+      <text x="968" y="70" class="vm-route-framework">Virtualization.framework</text>
+      <path d="M 580 74 V 424" class="vm-route-boundary"/>
+      <text x="580" y="51" class="vm-route-boundary-label">VM boundary</text>
+    </g>
+    <g data-id="guest">
+      <rect x="12" y="98" width="360" height="316" rx="8" class="vm-route-machine"/>
+      <text x="192" y="154" class="vm-route-name">macOS guest</text>
+      <text x="192" y="188" class="vm-route-detail">the OS inside the VM</text>
+      <text x="192" y="256" class="vm-route-work">our code</text>
+      <text x="192" y="389" class="vm-route-detail">demo starting point</text>
+    </g>
+    <g data-id="xpc">
+      <rect x="788" y="98" width="360" height="316" rx="8" class="vm-route-machine vm-route-host"/>
+      <text x="968" y="154" class="vm-route-process">VirtualMachine.xpc</text>
+      <text x="968" y="188" class="vm-route-detail">host userspace process</text>
+      <text x="968" y="256" class="vm-route-work">Video work</text>
+
+    </g>
+    <g class="vm-connection fragment" data-fragment-index="0" data-id="video-connection">
+      <text x="580" y="164" class="vm-route-request-label">video requests</text>
+      <path class="vm-route-pipe" d="M 372 248 H 788"/>
+      <path class="vm-route-request" d="M 372 248 H 457 M 703 248 H 788" marker-end="url(#guest-host-request-arrow)"/>
+      <circle class="vm-route-packet" cx="382" cy="248" r="6"/>
+      <g data-id="pvvt">
+        <rect x="457" y="204" width="246" height="90" rx="10" class="vm-route-device"/>
+        <text x="580" y="241" class="vm-route-device-name">Virtual video</text>
+        <text x="580" y="274" class="vm-route-device-name">device</text>
+      </g>
+    </g>
+  </svg>
+
+</section>
+
+<section id="video-device" class="vm-route-slide" data-chapter="5" data-auto-animate>
+  <h3>Guest requests become host video work</h3>
+  <svg class="vm-route-diagram" viewBox="0 0 1160 440" role="img" aria-labelledby="video-device-diagram-title video-device-diagram-desc">
+    <title id="video-device-diagram-title">Guest-to-host virtual video path</title>
+    <desc id="video-device-diagram-desc">A macOS guest sends video requests through a virtual video device to VirtualMachine.xpc on the host. A dashed line marks the VM boundary. Video results return to the guest.</desc>
+    <defs>
+      <marker id="video-device-request-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#ffbd5e"/></marker>
+        <marker id="video-device-return-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#5ff0c3"/></marker>
+    </defs>
+    <g data-id="vm-zones">
+      <text x="192" y="35" class="vm-route-zone">Guest · the virtual Mac</text>
+      <text x="968" y="35" class="vm-route-zone">Host · the real Mac</text>
+      <text x="968" y="70" class="vm-route-framework">Virtualization.framework</text>
+      <path d="M 580 74 V 424" class="vm-route-boundary"/>
+      <text x="580" y="51" class="vm-route-boundary-label">VM boundary</text>
+    </g>
+    <g data-id="guest">
+      <rect x="12" y="98" width="360" height="316" rx="8" class="vm-route-machine"/>
+      <text x="192" y="154" class="vm-route-name">macOS guest</text>
+      <text x="192" y="188" class="vm-route-detail">the OS inside the VM</text>
+      <text x="192" y="256" class="vm-route-work">VideoToolbox</text>
+      <text x="192" y="389" class="vm-route-detail">demo starting point</text>
+    </g>
+    <g data-id="xpc">
+      <rect x="788" y="98" width="360" height="316" rx="8" class="vm-route-machine vm-route-host"/>
+      <text x="968" y="154" class="vm-route-process">VirtualMachine.xpc</text>
+      <text x="968" y="188" class="vm-route-detail">host userspace process</text>
+      <text x="968" y="256" class="vm-route-work">Encoder / decoder</text>
+      <text x="968" y="389" class="vm-route-protections">PAC · MIE · sandboxed</text>
+    </g>
+    <g class="vm-connection" data-id="video-connection">
+      <text x="580" y="164" class="vm-route-request-label">video requests</text>
+      <path class="vm-route-pipe" d="M 372 248 H 788"/>
+      <path class="vm-route-request" d="M 372 248 H 457 M 703 248 H 788" marker-end="url(#video-device-request-arrow)"/>
+      <circle class="vm-route-packet" cx="382" cy="248" r="6"/>
+      <g data-id="pvvt">
+        <rect x="457" y="204" width="246" height="90" rx="10" class="vm-route-device"/>
+        <text x="580" y="241" class="vm-route-device-name">Virtual video</text>
+        <text x="580" y="274" class="vm-route-device-name">device</text>
+      </g>
+    </g>
+      <g class="vm-video-response">
+        <path class="vm-route-return-pipe" d="M 788 334 H 372"/>
+        <path class="vm-route-return" d="M 788 334 H 372" marker-end="url(#video-device-return-arrow)"/>
+        <circle class="vm-route-packet vm-route-return-packet" cx="778" cy="334" r="5"/>
+        <text x="580" y="372" class="vm-route-return-label">video results</text>
+      </g>
+  </svg>
+
+</section>
+
+<section id="boundary-in" class="vm-route-slide" data-chapter="5" data-auto-animate>
+  <h3>The guest can reach H9</h3>
+  <svg class="vm-route-diagram" viewBox="0 0 1160 440" role="img" aria-labelledby="h9-route-title h9-route-desc">
+    <title id="h9-route-title">A guest-controlled encoder setting reaches H9 on the host</title>
+    <desc id="h9-route-desc">The same guest and host remain visible. First reveal the guest-controlled UserRPSForFaceTime array. Next send the setting through the virtual video device; after it arrives, show the host encoder session and highlight its overwritten FPS pointer. This is a schematic sequence, not a measured trace or a memory layout to scale.</desc>
+    <defs>
+      <marker id="h9-route-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#ffbd5e"/></marker>
+      <marker id="h9-overwrite-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#ff6b6b"/></marker>
+    </defs>
+    <g data-id="vm-zones">
+      <text x="192" y="35" class="vm-route-zone">Guest · the virtual Mac</text>
+      <text x="968" y="35" class="vm-route-zone">Host · the real Mac</text>
+      <text x="968" y="70" class="vm-route-framework">Virtualization.framework</text>
+      <path d="M 580 74 V 424" class="vm-route-boundary"/>
+      <text x="580" y="51" class="vm-route-boundary-label">VM boundary</text>
+    </g>
+    <g data-id="guest">
+      <rect x="12" y="98" width="360" height="316" rx="8" class="vm-route-machine"/>
+      <text x="192" y="154" class="vm-route-name">macOS guest</text>
+      <text x="192" y="188" class="vm-route-detail">VideoToolbox</text>
+    </g>
+    <g data-id="xpc">
+      <rect x="788" y="98" width="360" height="316" rx="8" class="vm-route-machine vm-route-host"/>
+      <text x="968" y="154" class="vm-route-process">VirtualMachine.xpc</text>
+      <text x="968" y="188" class="vm-route-detail">host userspace process</text>
+    </g>
+    <g class="vm-connection" data-id="video-connection">
+      <path class="vm-route-pipe" d="M 372 248 H 788"/>
+      <path class="vm-route-request" d="M 372 248 H 457 M 703 248 H 788" marker-end="url(#h9-route-arrow)"/>
+      <g data-id="pvvt">
+        <rect x="457" y="204" width="246" height="90" rx="10" class="vm-route-device"/>
+        <text x="580" y="241" class="vm-route-device-name">Virtual video</text>
+        <text x="580" y="274" class="vm-route-device-name">device</text>
+      </g>
+    </g>
+    <g class="fragment" data-fragment-index="0">
+      <rect x="32" y="222" width="320" height="94" rx="6" class="h9-route-setting"/>
+      <text x="192" y="258" class="h9-route-property">UserRPSForFaceTime</text>
+      <text x="192" y="292" class="h9-route-detail">array supplied by the guest</text>
+      <text x="192" y="363" class="vm-route-request-label">We control the input here.</text>
+    </g>
+    <g class="fragment h9-route-delivery" data-fragment-index="1">
+      <g class="h9-route-traveler">
+        <rect x="326" y="228" width="92" height="40" rx="20"/>
+        <text x="372" y="255">setting</text>
+      </g>
+      <g class="h9-route-session">
+        <text x="968" y="226" class="h9-route-session-title">H9 encoder session</text>
+        <rect x="812" y="241" width="312" height="134" rx="6" class="h9-route-memory"/>
+        <rect x="849" y="253" width="260" height="42" class="h9-route-array"/>
+        <text x="979" y="281" class="h9-route-detail">inner array</text>
+        <rect x="849" y="320" width="260" height="42" class="h9-route-field"/>
+        <text x="979" y="348" class="h9-route-field-label">FPS pointer</text>
+        <path d="M 839 274 H 829 V 341 H 843" class="h9-route-overwrite" marker-end="url(#h9-overwrite-arrow)"/>
+      </g>
+      <text x="968" y="402" class="h9-route-result">The overwrite happens here.</text>
+    </g>
+  </svg>
+
+</section>
+
+<section id="need-addresses" class="visual-slide" data-chapter="5">
+  <h3>Why we needed a leak</h3>
+  <p class="v-intro fragment" data-fragment-index="0">H9 gave us a constrained write inside the host.</p>
+  <svg class="late-svg aslr-scene" viewBox="0 0 1160 345" role="img" aria-labelledby="aslr-title aslr-desc">
+    <title id="aslr-title">The shared-cache slide relates the known unslid address to the runtime address</title>
+    <desc id="aslr-desc">The same target has a known location in the matching cache file and a displaced location in the running host. One schematic animation moves the cache as a unit, preserving the target's offset within it. Recovering the displacement lets us calculate the target's runtime address. No actual address values, measured displacement or guest-restart randomization is implied.</desc>
+    <g class="fragment" data-fragment-index="0">
+      <text x="18" y="74" class="aslr-row-label">Matching file</text><text x="18" y="105" class="v-small">Unslid layout</text>
+      <rect x="240" y="39" width="640" height="77" rx="5" class="aslr-cache-box"/><text x="646" y="86" class="v-large" text-anchor="middle">Shared cache</text>
+      <path d="M405 42V114" class="aslr-target"/><path d="M395 39L405 51L415 39" class="aslr-target-head"/><text x="405" y="146" class="v-small" text-anchor="middle">Known unslid address</text>
+    </g>
+    <g class="fragment aslr-runtime" data-fragment-index="1">
+      <text x="18" y="237" class="aslr-row-label">Running host</text><text x="18" y="268" class="v-small">ASLR placement</text>
+      <rect x="240" y="202" width="640" height="77" rx="5" class="aslr-reference"/>
+      <g class="aslr-moving-cache"><rect x="240" y="202" width="640" height="77" rx="5" class="aslr-cache-box"/><text x="646" y="249" class="v-large" text-anchor="middle">Shared cache</text><path d="M405 205V277" class="aslr-target"/><path d="M395 202L405 214L415 202" class="aslr-target-head"/><text x="405" y="315" class="v-small" text-anchor="middle">Runtime address?</text></g>
+      <path d="M405 151V180H585V198M411 174L405 180L411 186M579 174L585 180L579 186" pathLength="1" class="aslr-displacement"/>
+      <text x="660" y="181" class="aslr-unknown-label">Unknown displacement</text>
+    </g>
+    <text x="660" y="181" class="fragment aslr-slide-label" data-fragment-index="2">Shared-cache slide</text>
+  </svg>
+  <div class="cache-equation aslr-equation fragment" data-fragment-index="2"><span>Known unslid address</span><b>+</b><strong>shared-cache slide</strong><b>=</b><span>Runtime address</span></div>
+
+</section>
+
+<section id="vm-stops" class="visual-slide" data-chapter="5">
+  <h3>Finding Bug #2 · first attempt</h3>
+  <p class="v-intro">The AI agent team used <code>ipsw</code> to identify writable shared-cache mappings.</p>
+  <svg class="late-svg" viewBox="0 0 1160 342" role="img" aria-labelledby="crash-search-title crash-search-desc">
+    <title id="crash-search-title">A host-driven probe narrows the candidate slide range</title>
+    <desc id="crash-search-desc">Offline mapping metadata gives the unshifted layout. One illustrative midpoint write faults, narrowing the range; the external host harness restores the stopped VM. Repeated observations locate the shifted boundary. This is a schematic, not recorded telemetry or a guest-only loop.</desc>
+    <defs><marker id="crash-loop-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#ffbd5e"/></marker><marker id="crash-loop-blue" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#7bb3ff"/></marker></defs>
+    <g class="fragment" data-fragment-index="0">
+      <rect x="8" y="14" width="300" height="310" rx="7" class="v-box v-host"/>
+      <text x="28" y="52" class="v-large crash-map-code">ipsw</text><text x="28" y="83" class="v-small">Cache mapping table</text><path d="M28 99H288" class="v-line"/>
+      <text x="28" y="126" class="v-small">Mapping</text><text x="219" y="126" class="v-small">Access</text>
+      <rect x="20" y="139" width="276" height="82" rx="3" class="v-box v-good"/>
+      <text x="34" y="170" class="crash-map-code">__DATA</text><text x="224" y="170" class="crash-map-code v-green">rw-</text><text x="34" y="206" class="crash-map-code">__AUTH</text><text x="224" y="206" class="crash-map-code v-green">rw-</text>
+      <text x="28" y="265">Known starts + sizes</text><text x="28" y="296" class="v-small">Before ASLR shifts them</text>
+    </g>
+    <g class="fragment crash-probe" data-fragment-index="1">
+      <rect x="604" y="18" width="254" height="78" rx="7" class="v-box v-amber-fill"/><text x="624" y="51" class="v-small">Bisect the remaining</text><text x="624" y="80">slide candidates</text>
+      <path d="M858 57C969 57 1034 88 1034 129" pathLength="1" class="v-line v-amber crash-trace crash-to-write" marker-end="url(#crash-loop-arrow)"/>
+      <rect x="924" y="133" width="220" height="84" rx="7" class="v-box v-amber-fill"/><text x="944" y="169" class="v-large">H9 write</text><text x="944" y="201" class="v-small">At the midpoint</text>
+      <path d="M1034 217C1034 281 910 289 874 289" pathLength="1" class="v-line v-amber crash-trace crash-to-result" marker-end="url(#crash-loop-arrow)"/>
+      <g class="crash-fault-card"><rect x="594" y="251" width="276" height="76" rx="7" class="v-box v-fault"/><text x="614" y="283">Example: fault</text><text x="614" y="314" class="v-small">Guest stops</text></g>
+      <text x="742" y="129" class="crash-loop-center v-small">Remaining candidates</text><rect x="612" y="145" width="260" height="27" rx="3" class="crash-range-track"/><rect x="612" y="145" width="260" height="27" rx="3" class="crash-range-fill"/><path d="M742 139V179" class="crash-midpoint"/><text x="742" y="210" class="crash-loop-center crash-range-result">One half retained</text>
+      <path d="M594 289C487 289 443 250 443 221" pathLength="1" class="v-line v-blue crash-trace crash-to-restore" marker-end="url(#crash-loop-blue)"/>
+      <rect x="350" y="133" width="186" height="84" rx="7" class="v-box v-host"/><text x="370" y="170" class="crash-loop-label">Host harness</text><text x="370" y="201" class="crash-loop-label">restores VM</text>
+      <path d="M443 133C443 88 547 57 600 57" pathLength="1" class="v-line v-blue crash-trace crash-next-probe" marker-end="url(#crash-loop-blue)"/>
+    </g>
+  </svg>
+  <p class="crash-search-result fragment" data-fragment-index="2">Repeated probes locate the boundary. <span>Runtime − known location = slide.</span></p>
+  <div class="crash-story"><p class="fragment" data-fragment-index="2"><span role="img" aria-label="Excited">🤩</span> I woke up to a working demo. It was glorious.</p></div>
+  <div class="false-win-finale fragment" data-fragment-index="3"><picture><source media="(prefers-reduced-motion: reduce), print" srcset="assets/facepalm-really-poster.jpg"><img src="assets/facepalm-really.gif" alt="A frustrated man closes his eyes and covers his face."></picture><blockquote>“Then I looked closer.<br>It was crashing the freaking VM.”</blockquote></div>
+
+</section>
+
+<section id="avd-leak" data-chapter="5" class="bug-slide component-slide avd-intro-slide">
+  <h3>Bug #2 · the decoder leak</h3>
+  <p class="avd-definition">A decoder turns compressed video into frames.</p>
+  <div class="single-image">
+    <code class="image-name">AppleVideoDecoder</code>
+    <p class="image-path">/System/Library/Video/Plug-Ins/<br>AppleVideoDecoder.bundle/Contents/MacOS/AppleVideoDecoder</p>
+    <p>User-space codec plugin · loaded outside the shared cache</p>
+  </div>
+  <svg class="avd-intro-diagram fragment" data-fragment-index="0" viewBox="0 0 1160 208" role="img" aria-labelledby="avd-intro-title avd-intro-desc">
+    <title id="avd-intro-title">Decoded video is returned with attached metadata</title>
+    <desc id="avd-intro-desc">Compressed video enters the decoder, which returns a decoded frame and attached histogram metadata. The second advance highlights an unintended host state address in that metadata header. The histogram counts are a separate part of the result.</desc>
+    <rect x="8" y="37" width="245" height="134" rx="5" class="avd-concept-box"/>
+    <text x="130" y="92" text-anchor="middle" class="avd-concept-title">Compressed</text>
+    <text x="130" y="128" text-anchor="middle" class="avd-concept-title">video</text>
+    <path d="M264 104H318M306 93L318 104L306 115" class="avd-concept-arrow"/>
+    <rect x="330" y="37" width="264" height="134" rx="5" class="avd-concept-box"/>
+    <text x="462" y="95" text-anchor="middle" class="avd-concept-title">Decoder</text>
+    <text x="462" y="132" text-anchor="middle" class="avd-concept-small">host process</text>
+    <path d="M605 104H659M647 93L659 104L647 115" class="avd-concept-arrow"/>
+    <rect x="672" y="8" width="480" height="193" rx="5" class="avd-concept-box"/>
+    <text x="912" y="42" text-anchor="middle" class="avd-concept-title">Returned surface</text>
+    <rect x="688" y="65" width="184" height="126" rx="3" class="avd-concept-frame"/>
+    <path d="M708 153l41-43 24 24 28-34 52 53z" fill="#547693"/><circle cx="733" cy="92" r="10" fill="#90afc5"/>
+    <text x="780" y="185" text-anchor="middle" class="avd-concept-tiny">decoded frame</text>
+    <rect x="890" y="65" width="247" height="52" rx="2" class="avd-concept-frame"/>
+    <text x="1013" y="98" text-anchor="middle" class="avd-concept-small">metadata header</text>
+    <rect x="890" y="119" width="247" height="72" rx="2" class="avd-concept-frame"/>
+    <text x="1013" y="157" text-anchor="middle" class="avd-concept-small">histogram counts</text>
+    <g class="fragment avd-header-disclosure" data-fragment-index="1"><rect x="890" y="65" width="247" height="52" rx="2" class="avd-concept-leak"/><text x="1013" y="98" text-anchor="middle" class="avd-concept-leak-label">host state address</text></g>
+  </svg>
+  <p class="avd-intro-takeaway fragment" data-fragment-index="1">The metadata includes an address from the host’s decoder state.</p>
+
+</section>
+
+<section id="avd-writer" class="bug-slide source-slide" data-chapter="5">
+  <h3>The pointer is written into the result</h3>
+  <p class="source-function"><code>AppleVideoDecoder + 0xe7804</code></p>
+  <p class="source-caption">Histogram writer · reconstructed pseudocode · macOS 26.5.1 (25F80)</p>
+  <pre><code class="language-c" data-trim data-line-numbers="|1-4|3|5-7" data-fragment-index="0">
+blob = ctx-&gt;histogram_blob;
+blob-&gt;magic = HISTOGRAM_MAGIC;
+blob-&gt;decoder_context = ctx;          // host pointer
+blob-&gt;frame_number = frame;
+source = ctx-&gt;histogram_ring + (frame &amp; 15) * 512;
+memcpy(blob-&gt;histogram, source, 512);
+IOSurfaceSetDataProperty(surface, 2, 544, blob);
+  </code></pre>
+  <p class="code-step-captions">
+    <span class="fragment fade-in-then-out" data-fragment-index="0"><b>Build the metadata header.</b><br>Record the magic value, decoder context and frame number.</span>
+    <span class="fragment fade-in-then-out" data-fragment-index="1"><b class="accent2">This is the disclosure.</b><br>The header contains the decoder’s own host pointer.</span>
+    <span class="fragment" data-fragment-index="2"><b>Publish the result.</b><br>The 544-byte metadata includes that pointer and 512 bytes of histogram data.</span>
+  </p>
+
+</section>
+
+<section id="avd-blob-layout" class="bug-slide fps-slide decoder-layout" data-chapter="5">
+  <h3>The pointer is in the 32-byte header</h3>
+  <p class="diagram-kicker">544-byte result · reconstructed field layout · macOS 26.5.1 (25F80) · not to scale</p>
+  <svg class="fps-diagram avd-blob-svg" xmlns="http://www.w3.org/2000/svg" width="1160" height="390" viewBox="0 0 1160 390" role="img" aria-labelledby="avd-blob-title avd-blob-desc">
+  <title id="avd-blob-title">The decoder result leaks its context pointer in the header</title>
+  <desc id="avd-blob-desc">A reconstructed 544-byte result on macOS 26.5.1 (25F80): magic at zero, eight-byte context pointer at offset eight, frame index at sixteen, scalar metadata from twenty through thirty-one, and 512 histogram bytes beginning at thirty-two. Field heights are not proportional to size.</desc>
+  <text x="240" y="28" class="small">Offset</text>
+  <text x="332" y="28" class="label">Returned blob</text>
+  <path d="M290 42H810V370H290Z" fill="#121b25" stroke="#577b9f" stroke-width="2"/>
+  <path d="M274 46H261V251H274" fill="none" stroke="#7bb3ff" stroke-width="2"/>
+  <text x="22" y="133" class="label">32 B</text>
+  <text x="22" y="163" class="small">header</text>
+  <text x="242" y="78" class="offset">+0x00</text>
+  <text x="314" y="78">magic · “aavdhst1”</text>
+  <text x="784" y="78" text-anchor="end" class="small">8 B</text>
+  <g class="fragment avd-blob-disclosure" data-fragment-index="0">
+  <rect x="294" y="96" width="512" height="54" fill="#153b31" stroke="#5ff0c3" stroke-width="2"/>
+  <text x="242" y="133" class="offset leak">+0x08</text>
+  <text x="314" y="133" class="label leak">decoder context pointer</text>
+  <text x="784" y="133" text-anchor="end" class="small leak">8 B</text>
+  <path class="avd-disclosure-line" pathLength="1" d="M812 123H850" fill="none" stroke="#5ff0c3" stroke-width="2"/>
+  <text x="869" y="119" class="leak label">The disclosure</text>
+  <text x="869" y="151" class="small">host address + tag</text>
+  </g>
+  <path d="M294 199H806M294 252H806" stroke="#34465b" stroke-width="1"/>
+  <text x="242" y="184" class="offset">+0x10</text>
+  <text x="314" y="184">frame index</text>
+  <text x="784" y="184" text-anchor="end" class="small">4 B</text>
+  <text x="242" y="236" class="offset">+0x14</text>
+  <text x="314" y="236">other scalar metadata</text>
+  <text x="784" y="236" text-anchor="end" class="small">12 B</text>
+  <g class="fragment avd-blob-payload" data-fragment-index="1">
+  <rect class="avd-payload-fill" x="294" y="255" width="512" height="111" fill="#1c2939"/>
+  <text x="242" y="289" class="offset">+0x20</text>
+  <text x="314" y="302" class="label">histogram bin counts</text>
+  <text x="314" y="337" class="small">512 bytes of frame data</text>
+  <text x="242" y="370" class="offset">+0x220</text>
+  <text x="869" y="307">The expected data</text>
+  <text x="869" y="339" class="small">not the pointer leak</text>
+  </g>
+</svg>
+  <p class="diagram-takeaway fragment" data-fragment-index="1">The leak is in the <span class="accent2">header</span>, before the histogram data.</p>
+
+</section>
+
+<section id="boundary-out" class="vm-route-slide" data-chapter="5" data-auto-animate>
+  <h3>The host pointer comes back to the guest</h3>
+  <svg class="vm-route-diagram" viewBox="0 0 1160 440" role="img" aria-labelledby="decoder-return-title decoder-return-desc">
+    <title id="decoder-return-title">The decoder metadata carries a host pointer back across the VM boundary</title>
+    <desc id="decoder-return-desc">Guest on the left, host on the right. The host's AppleVideoDecoder includes its context pointer at offset 8 in a 544-byte result. One click shows this result inside the host VM process. The next sends the metadata left through the virtual video device and reveals the same pointer in the guest-visible result. This schematic illustrates disclosure of an address, not migration of the decoder object into the guest.</desc>
+    <defs>
+      <marker id="decoder-return-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#5ff0c3"/></marker>
+    </defs>
+    <g data-id="vm-zones">
+      <text x="192" y="35" class="vm-route-zone">Guest · the virtual Mac</text>
+      <text x="968" y="35" class="vm-route-zone">Host · the real Mac</text>
+      <text x="968" y="70" class="vm-route-framework">Virtualization.framework</text>
+      <path d="M 580 74 V 424" class="vm-route-boundary"/>
+      <text x="580" y="51" class="vm-route-boundary-label">VM boundary</text>
+    </g>
+    <g data-id="guest">
+      <rect x="12" y="98" width="360" height="316" rx="8" class="vm-route-machine"/>
+      <text x="192" y="154" class="vm-route-name">macOS guest</text>
+      <text x="192" y="188" class="vm-route-detail">VideoToolbox</text>
+    </g>
+    <g data-id="xpc">
+      <rect x="788" y="98" width="360" height="316" rx="8" class="vm-route-machine vm-route-host"/>
+      <text x="968" y="154" class="vm-route-process">VirtualMachine.xpc</text>
+      <text x="968" y="188" class="vm-route-detail">host userspace process</text>
+    </g>
+    <g data-id="video-connection">
+      <path class="vm-route-return-pipe" d="M 788 248 H 372"/>
+      <g data-id="pvvt">
+        <rect x="457" y="204" width="246" height="90" rx="10" class="vm-route-device"/>
+        <text x="580" y="241" class="vm-route-device-name">Virtual video</text>
+        <text x="580" y="274" class="vm-route-device-name">device</text>
+      </g>
+    </g>
+    <g class="fragment" data-fragment-index="0">
+      <text x="968" y="226" class="decoder-return-label">AppleVideoDecoder</text>
+      <rect x="812" y="241" width="312" height="122" rx="6" class="decoder-return-blob"/>
+      <rect x="826" y="253" width="284" height="44" rx="3" class="decoder-return-pointer"/>
+      <text x="968" y="282" class="decoder-return-pointer-label">host ctx* at +8</text>
+      <text x="968" y="337" class="vm-route-detail">+ histogram data</text>
+      <text x="968" y="398" class="vm-route-detail">544-byte result</text>
+    </g>
+    <g class="fragment decoder-return-delivery" data-fragment-index="1">
+      <text x="580" y="164" class="vm-route-return-label">IOSurface metadata</text>
+      <path class="vm-route-return" d="M 788 248 H 703 M 457 248 H 372" marker-end="url(#decoder-return-arrow)"/>
+      <g class="decoder-return-traveler">
+        <rect x="742" y="228" width="92" height="40" rx="20"/>
+        <text x="788" y="255">result</text>
+      </g>
+      <g class="decoder-return-received">
+        <text x="192" y="226" class="decoder-return-label">Returned metadata</text>
+        <rect x="32" y="241" width="320" height="122" rx="6" class="decoder-return-blob"/>
+        <rect x="46" y="253" width="292" height="44" rx="3" class="decoder-return-pointer"/>
+        <text x="192" y="282" class="decoder-return-pointer-label">same host pointer</text>
+        <text x="192" y="337" class="vm-route-detail">+ histogram data</text>
+        <text x="192" y="398" class="decoder-return-api">IOSurfaceGetDataProperty</text>
+      </g>
+    </g>
+  </svg>
+  <p class="decoder-return-takeaway fragment" data-fragment-index="1">The guest can read the host’s decoder pointer.</p>
+
+</section>
+
+<section id="avd-read" data-chapter="5" class="bug-slide fps-slide decoder-context">
+  <h3>The write changes what the decoder reads</h3>
+  <p class="diagram-kicker">Decoder context excerpt · reconstructed from macOS 26.5.1 (25F80) · unknown fields omitted</p>
+  <svg class="fps-diagram avd-read-svg" viewBox="0 0 1160 390" role="img" aria-labelledby="avd-read-title avd-read-desc">
+    <title id="avd-read-title">The known decoder state connects the two bugs</title>
+    <desc id="avd-read-desc">First, the metadata header discloses the decoder-state address and tag. Second, the separate H9-derived write changes the histogram source pointer in that state. Third, the decoder's existing 512-byte copy reads the selected source window into its result and returns those bytes to the guest. The result-buffer pointer is a different field. Required state repairs are omitted; the whole read window must be accessible with the correct tag.</desc>
+    <defs>
+      <marker id="avd-read-green-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#5ff0c3"/></marker>
+      <marker id="avd-read-red-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff7580"/></marker>
+    </defs>
+    <text x="20" y="30" class="avd-read-title">Decoder state · ctx</text>
+    <g class="fragment avd-known-state" data-fragment-index="0"><text x="20" y="60" class="avd-read-small avd-read-green">Bug #2 gives us this address and tag</text><path d="M18 73H512" class="avd-read-known-line"/></g>
+    <rect x="20" y="80" width="490" height="277" rx="5" class="avd-read-state-box"/>
+    <path d="M35 107L150 114L265 107L380 114L495 107" class="avd-read-break"/>
+    <text x="40" y="157" class="avd-read-offset">+0xe9c</text><text x="180" y="157">histogram gate</text>
+    <rect x="26" y="181" width="478" height="57" class="avd-source-row"/>
+    <text x="40" y="219" class="avd-read-offset avd-source-label">+0xea0</text><text x="180" y="219" class="avd-read-title avd-source-label">source pointer</text>
+    <path d="M36 258L150 265L265 258L380 265L494 258" class="avd-read-break"/>
+    <text x="40" y="314" class="avd-read-offset">+0xf48</text><text x="180" y="314">result buffer pointer</text>
+    <g class="fragment avd-retarget" data-fragment-index="1">
+      <path d="M630 264V220H505" pathLength="1" class="avd-retarget-path" marker-end="url(#avd-read-red-head)"/>
+      <text x="535" y="293" class="avd-read-red">H9 write</text><text x="535" y="323" class="avd-read-small">changes this</text><text x="535" y="352" class="avd-read-small">source pointer</text>
+    </g>
+    <g class="fragment avd-copy-return" data-fragment-index="2">
+      <text x="690" y="32" class="avd-read-small">Existing read and return path</text>
+      <rect x="690" y="64" width="448" height="123" rx="5" class="avd-read-source-box"/>
+      <text x="714" y="106" class="avd-read-title">Selected source window</text><text x="714" y="145" class="avd-read-small">512 bytes · correct tag required</text>
+      <path d="M513 197H588V126H681" pathLength="1" class="avd-copy-path avd-copy-source" marker-end="url(#avd-read-green-head)"/>
+      <path d="M910 191V260" pathLength="1" class="avd-copy-path avd-copy-result" marker-end="url(#avd-read-green-head)"/>
+      <text x="937" y="231" class="avd-read-small">memcpy</text>
+      <rect x="690" y="273" width="448" height="99" rx="5" class="avd-read-result-box"/>
+      <text x="714" y="312" class="avd-read-title avd-read-green">Result blob · payload +0x20</text><text x="714" y="346" class="avd-read-small">Returned through the surface to guest</text>
+    </g>
+  </svg>
+  <p class="diagram-takeaway fragment" data-fragment-index="2">The next result returns bytes from the replacement source.</p>
+  <p class="diagram-scope avd-read-limit fragment" data-fragment-index="2">The full 512-byte window must be accessible with the correct tag.</p>
+
+</section>
+
+<section id="avd-addresses" class="visual-slide" data-chapter="5">
+  <h3>How we recovered the shared-cache slide</h3>
+  <p class="v-intro">The rebuilt chain follows pointers from decoder state into the host’s libraries.</p>
+  <svg class="late-svg" viewBox="0 0 1160 320" role="img" aria-labelledby="cache-trail-title cache-trail-desc">
+    <title id="cache-trail-title">Decoder state leads to the plugin, then to a resolved system-library pointer.</title>
+    <desc id="cache-trail-desc">Read a callback pointer from decoder state. Subtract its known offset to locate the plugin. Read a resolved import pointer at a known location inside that plugin. Compare the imported function’s runtime address with its known unslid address to calculate the shared-cache slide.</desc>
+    <rect x="20" y="20" width="310" height="280" rx="7" class="v-box v-tag-a"/>
+    <text x="175" y="65" class="v-large" text-anchor="middle">Decoder state</text>
+    <text x="175" y="104" class="v-small" text-anchor="middle">Address from Bug #2</text>
+    <g class="fragment cache-trail-stage" data-fragment-index="0">
+      <rect x="40" y="154" width="270" height="103" rx="5" class="v-box v-good"/>
+      <text x="175" y="190" text-anchor="middle">Read callback pointer</text>
+      <text x="175" y="226" class="v-small" text-anchor="middle">Into decoder code</text>
+      <path d="M342 204 H411 M400 196 L411 204 L400 212" pathLength="1" class="v-line v-green cache-trail-link"/>
+      <rect x="425" y="20" width="310" height="280" rx="7" class="v-box v-library"/>
+      <text x="580" y="65" class="v-large" text-anchor="middle">Decoder plugin</text>
+      <text x="580" y="105" text-anchor="middle">Callback − known offset</text>
+      <text x="580" y="139" class="v-blue" text-anchor="middle">= plugin base</text>
+    </g>
+    <g class="fragment cache-trail-stage" data-fragment-index="1">
+      <rect x="445" y="170" width="270" height="105" rx="5" class="v-box v-good"/>
+      <text x="580" y="207" text-anchor="middle">Read resolved import</text>
+      <text x="580" y="244" class="v-small" text-anchor="middle">Slot at a known offset</text>
+      <path d="M747 222 H816 M805 214 L816 222 L805 230" pathLength="1" class="v-line v-green cache-trail-link"/>
+      <rect x="830" y="20" width="310" height="280" rx="7" class="v-box v-amber-fill"/>
+      <text x="985" y="65" class="v-large" text-anchor="middle">Shared cache</text>
+      <text x="985" y="122" text-anchor="middle"><tspan x="985">System-library function’s</tspan><tspan x="985" dy="34">runtime address</tspan></text>
+      <text x="985" y="220" class="v-small" text-anchor="middle"><tspan x="985">The loader resolved</tspan><tspan x="985" dy="29">this pointer for us.</tspan></text>
+    </g>
+  </svg>
+  <div class="fragment" data-fragment-index="2">
+    <div class="cache-equation" aria-label="Runtime function address minus known unslid function address equals shared-cache slide">
+      <span>Runtime function address</span><b>−</b><span>Known unslid address</span><b>=</b><strong>Shared-cache slide</strong>
+    </div>
+    <p class="cache-qualification">Offsets and unslid address: known from binary analysis of the same build.<br>We calculate the slide; the decoder never returns it directly.</p>
+  </div>
+
+</section>
+
+<section id="two-addresses" class="visual-slide" data-chapter="5">
+<h3>Where is our data in the host?</h3>
+<p class="v-intro">The early chain could read and write host memory and locate system libraries.<br>Its working data was still in the guest.</p>
+<svg class="late-svg fragment" data-fragment-index="0" viewBox="0 0 1160 250" role="img" aria-labelledby="guest-memory-map-title guest-memory-map-desc">
+  <title id="guest-memory-map-title">One buffer viewed through guest and host address spaces</title>
+  <desc id="guest-memory-map-desc">The buffer we prepared is accessible in the guest. Its backing memory also has an address in the host VM process, which the early chain needed to discover. The two boxes show views of the same memory, not a transfer or copy of the data. Host library locations are a separate question.</desc>
+  <rect x="20" y="18" width="380" height="218" rx="7" class="v-box"/>
+  <text x="210" y="60" class="v-large" text-anchor="middle">Guest address space</text>
+  <rect x="55" y="84" width="310" height="86" rx="5" class="v-box v-host same-memory-bytes"/>
+  <text x="210" y="115" class="v-small" text-anchor="middle">example working data</text>
+  <text x="210" y="151" class="memory-example" text-anchor="middle">“hello”</text>
+  <text x="210" y="208" class="v-small" text-anchor="middle">We know its guest address.</text>
+  <path d="M 412 123 H 748" class="v-line v-dashed"/>
+  <text x="580" y="101" text-anchor="middle">Same bytes</text>
+  <text x="580" y="162" class="v-small" text-anchor="middle">Different addresses</text>
+  <rect x="760" y="18" width="380" height="218" rx="7" class="v-box v-host host-memory-view"/>
+  <text x="950" y="60" class="v-large" text-anchor="middle">Host address space</text>
+  <rect x="795" y="84" width="310" height="86" rx="5" class="v-box v-host same-memory-bytes"/>
+  <text x="950" y="115" class="v-small" text-anchor="middle">the same working data</text>
+  <text x="950" y="151" class="memory-example" text-anchor="middle">“hello”</text>
+  <text x="950" y="208" class="v-amber" text-anchor="middle">What is its host address?</text>
+</svg>
+<p class="v-takeaway fragment mapping-need" data-fragment-index="1">For host code to use this buffer,<br>we needed its address in the host process.</p>
+
+</section>
+
+<section id="vmmap-dependency" class="visual-slide" data-chapter="7">
+<h3>Finding that address · first attempt</h3>
+<p class="v-source">The test harness looked it up outside the VM.</p><svg class="late-svg" viewBox="0 0 1120 350" role="img" aria-labelledby="vmmap-dependency-visual-title">
+<title id="vmmap-dependency-visual-title">The host’s vmmap output supplied the address of guest memory in the host process.</title>
+<g class="fragment" data-fragment-index="0">
+<rect x="35" y="60" width="345" height="205" rx="7" class="v-box "/>
+<text x="207.5" y="127" class="" text-anchor="middle"><tspan x="207.5" dy="0">Guest-side chain</tspan></text>
+<rect x="735" y="60" width="345" height="205" rx="7" class="v-box "/>
+<text x="907.5" y="156.5" class="" text-anchor="middle"><tspan x="907.5" dy="0">Host</tspan><tspan x="907.5" dy="29">vmmap output</tspan></text>
+<text x="207.5" y="220" class="v-small vmmap-needs-address" text-anchor="middle">Needs a host address</text>
+<path d="M560,20 L560,95 M560,151 L560,270" class="v-line v-dashed"/>
+<text x="560" y="342" class="v-small" text-anchor="middle"><tspan x="560" dy="0">Guest / host boundary</tspan></text>
+</g>
+<g class="fragment vmmap-address-transfer" data-fragment-index="0">
+<path d="M721,176 L396,176" class="v-line v-amber"/>
+<path d="M406,170 L396,176 L406,182" class="v-line v-amber"/>
+<text x="560" y="104" class="v-amber" text-anchor="middle"><tspan x="560" dy="0">Guest memory’s</tspan><tspan x="560" dy="29">host address</tspan></text>
+<text x="560" y="304" class="v-amber" text-anchor="middle"><tspan x="560" dy="0">Supplied from outside the VM</tspan></text>
+<g class="vmmap-address-token" aria-hidden="true"><rect x="673" y="157" width="96" height="38" rx="19" class="v-box v-amber-fill"/><text x="721" y="183" class="vmmap-token-label" text-anchor="middle">address</text></g>
+<g class="vmmap-address-received"><rect x="61" y="156" width="292" height="83" rx="5" class="v-box v-amber-fill"/><text x="207" y="192" text-anchor="middle">Host address</text><text x="207" y="222" class="v-small v-amber" text-anchor="middle">supplied by the harness</text></g>
+</g>
+</svg><div class="false-win-finale fragment" data-fragment-index="1"><picture><source media="(prefers-reduced-motion: reduce), print" srcset="assets/facepalm-jonah-hill-poster.jpg"><img src="assets/facepalm-jonah-hill.gif" alt="Jonah Hill closes his eyes and covers his face in frustration."></picture><blockquote>“Of course it freaking worked,<br>with the answer handed to it.”</blockquote></div>
+
+</section>
+
+<section id="guessing-k" class="visual-slide" data-chapter="7">
+<h3>The mapping guess came down to one bit.</h3>
+<p class="v-source">For the 8 GB guest-RAM allocation we investigated</p>
+<svg class="late-svg" viewBox="0 0 1160 370" role="img" aria-labelledby="mapping-guess-title mapping-guess-desc">
+  <title id="mapping-guess-title">XNU’s guard-object allocator has two slots in this size class and randomly chooses a free slot</title>
+  <desc id="mapping-guess-desc">The left panel names XNU’s guard-object allocator in vm_map_store.c and summarizes the relevant logic: two slots for this size class and a uniformly random free-slot choice. The historical measurements and configuration details are retained in the speaker notes. The two boxes are possible placements, not two simultaneous copies of guest memory. One unknown binary choice gives a one-in-two mapping guess under this model; it does not establish whole-chain reliability.</desc>
+  <g class="fragment" data-fragment-index="0">
+    <text x="20" y="35" class="v-blue v-large">XNU guard objects</text>
+    <text x="20" y="78" class="mapping-code">vm_map_store.c</text>
+    <text x="20" y="126" class="v-small">Large-allocation path · simplified</text>
+    <rect x="8" y="148" width="365" height="118" rx="6" class="v-box v-host"/>
+    <text x="24" y="192" class="mapping-code">slots = 2</text>
+    <text x="24" y="234" class="mapping-code">pick = uniform_random(slots)</text>
+    <text x="20" y="313" class="v-small">Two possible placements.</text>
+    <text x="20" y="345" class="v-small">The current choice is unknown.</text>
+  </g>
+  <g class="fragment" data-fragment-index="1">
+    <path d="M397 18 V353" class="v-line v-dashed"/>
+    <text x="788" y="35" class="v-amber v-large" text-anchor="middle">The kernel still chooses randomly</text>
+    <rect x="565" y="67" width="435" height="69" rx="6" class="v-box v-amber-fill"/>
+    <text x="782" y="110" text-anchor="middle">Uniform random slot selection</text>
+    <path d="M782 137 V166 M608 166 H958 M608 166 V193 M958 166 V193" class="v-line v-amber"/>
+    <path d="M600 185 L608 193 L616 185 M950 185 L958 193 L966 185" class="v-line v-amber"/>
+    <rect x="470" y="203" width="275" height="89" rx="6" class="v-box v-window"/>
+    <text x="608" y="240" text-anchor="middle">Location A</text>
+    <text x="608" y="270" class="v-small" text-anchor="middle">Guest RAM could be here</text>
+    <rect x="820" y="203" width="275" height="89" rx="6" class="v-box v-window"/>
+    <text x="958" y="240" text-anchor="middle">Location B</text>
+    <text x="958" y="270" class="v-small" text-anchor="middle">Guest RAM could be here</text>
+    <text x="782" y="341" class="v-amber v-large" text-anchor="middle">1 unknown bit → 50/50 mapping guess</text>
+  </g>
+</svg>
+<div class="fragment mapping-outcomes" data-fragment-index="2">
+  <div class="mapping-outcome-row"><div class="mapping-correct"><span>Correct guess</span><strong>Continue</strong></div><div class="mapping-wrong"><span>Wrong guess</span><strong>Host XPC crashes</strong></div></div>
+  <p class="v-takeaway">Restarting makes a fresh choice; retries do not narrow it down.</p>
+  <p class="v-source">The 50% describes the mapping guess. Other chain stages could still fail.</p>
+</div>
+
+</section>
+
+<section id="stalled" class="story-slide" data-chapter="8">
+<h3>We spent days on this.</h3>
+<blockquote>“And having Mythos just grind for days trying to figure it out.”</blockquote>
+<p>I wanted a result without the shortcuts<br>or repeated crashes.</p>
+
+</section>
+
+<section id="making-it-work" class="chapter-divider" data-chapter="8">
+<h2>Making It Work</h2>
+
+</section>
+
+<section id="question-the-dependency" class="story-slide mentor-slide" data-chapter="8">
+<div class="mentor-layout">
+<div class="mentor-copy">
+<p class="eyebrow">During the stall</p>
+<h3>Did we need the<br><span class="mentor-key-term">guest-memory</span> mapping?</h3>
+<p>My team lead questioned keeping our working data in guest memory.</p>
+<p>He also suggested a fresh context without the accumulated assumptions.</p>
+</div>
+<figure class="mentor-portrait">
+<img class="mentor-photo" src="assets/team-lead.png" alt="My team lead holding a cat.">
+<img class="mentor-cat-glasses fragment" data-fragment-index="0" src="assets/deal-with-it-sunglasses.png" alt="" aria-hidden="true">
+<p class="mentor-cat-line fragment" data-fragment-index="1">Have you tried,<br>I don’t know…<br>just not needing that address?</p>
+</figure>
+</div>
+
+</section>
+
+<section id="collaborative-design" class="story-slide" data-chapter="8">
+<h3>Start from what the primitives can do.</h3>
+<blockquote>“use the LLM to answer questions vs. to PoC it directly.”</blockquote>
+<p class="quote-credit">— team lead</p>
+<p>Work through the design together.</p>
+<p class="redesign-jobs">Make the reads safe.<br>Give our data a known home on the host.</p>
+
+</section>
+
+<section id="bounded-read-failure" data-chapter="9" class="visual-slide">
+<h3>The 512-byte read was too big.</h3>
+<p class="v-intro">MTE (Memory Tagging Extension) checks a pointer’s tag against the memory it accesses.</p><svg class="late-svg" viewBox="0 0 1120 350" role="img" aria-labelledby="bounded-read-failure-visual-title">
+<title id="bounded-read-failure-visual-title">A 512-byte read extends out of a small object into memory with a different tag.</title>
+<defs><linearGradient id="bounded-read-range" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5ff0c3" stop-opacity=".18"/><stop offset="32.85%" stop-color="#5ff0c3" stop-opacity=".18"/><stop offset="32.86%" stop-color="#ff5a66" stop-opacity=".2"/><stop offset="100%" stop-color="#ff5a66" stop-opacity=".2"/></linearGradient></defs>
+<g class="fragment" data-fragment-index="0">
+<text x="130" y="48" class="v-blue" text-anchor="middle"><tspan x="130" dy="0">Pointer · tag A</tspan></text>
+<path d="M170,62 L275,62" class="v-line v-blue"/>
+<path d="M265,56 L275,62 L265,68" class="v-line v-blue"/>
+<rect x="280" y="28" width="250" height="100" rx="7" class="v-box v-tag-a"/>
+<text x="405.0" y="72.0" class="" text-anchor="middle"><tspan x="405.0" dy="0">Small array object</tspan><tspan x="405.0" dy="29">tag A</tspan></text>
+<rect x="530" y="28" width="545" height="100" rx="7" class="v-box v-tag-b"/>
+<text x="802.5" y="86.0" class="" text-anchor="middle"><tspan x="802.5" dy="0">Neighboring memory · different tag</tspan></text>
+</g>
+<g class="fragment bounded-read-window" data-fragment-index="1">
+<rect x="300" y="29" width="700" height="98" fill="url(#bounded-read-range)" class="bounded-read-scan"/>
+<path d="M300,163 L1000,163" class="v-line v-red"/>
+<path d="M300,152 L300,178" class="v-line v-red"/>
+<path d="M1000,152 L1000,178" class="v-line v-red"/>
+<text x="650" y="218" class="v-red v-large" text-anchor="middle"><tspan x="650" dy="0">Our read copies 512 bytes</tspan></text>
+<path d="M530,18 L530,146" class="v-line v-dashed v-red"/>
+<text x="548" y="153" class="v-red" text-anchor="start"><tspan x="548" dy="0">Tag boundary</tspan></text>
+</g>
+<g class="fragment bounded-read-fault" data-fragment-index="2">
+<rect x="280" y="285" width="795" height="54" rx="7" class="v-box v-fault"/>
+<text x="677.5" y="320.0" class="" text-anchor="middle"><tspan x="677.5" dy="0">The read reaches the wrong tag → fault</tspan></text>
+</g>
+</svg><p class="v-takeaway fragment" data-fragment-index="2">A valid starting pointer did not make the whole read safe.</p>
+
+</section>
+
+<section id="scalar-read" class="visual-slide" data-chapter="9">
+<h3>Read the resolved pointer, then calculate the slide</h3>
+<p class="v-intro">The plugin’s import slot already holds a system-library function address.</p>
+<svg class="late-svg" viewBox="0 0 1160 330" role="img" aria-labelledby="scalar-read-visual-title scalar-read-visual-desc">
+<title id="scalar-read-visual-title">Read four bytes of a resolved import pointer into decoder state, then return them within a safe 512-byte histogram window.</title>
+<desc id="scalar-read-visual-desc">The source is a known import slot in the decoder plugin's read-only data. Its resolved pointer points into a system library in the shared cache. A different decoder operation copies the low 32 bits into decoder state, and the existing histogram returns that value to the guest. The source read and the return copy are separate operations.</desc>
+<g class="fragment" data-fragment-index="0">
+<rect x="15" y="32" width="350" height="245" rx="7" class="v-box v-library"/>
+<text x="190" y="72" class="v-large" text-anchor="middle">Decoder plugin</text>
+<text x="190" y="106" class="v-small" text-anchor="middle">Known import slot · read-only</text>
+<text x="190" y="152" text-anchor="middle">Resolved library pointer</text>
+<rect x="42" y="176" width="296" height="64" rx="5" class="v-box v-good"/>
+<text x="190" y="216" text-anchor="middle">Low 32 bits · 4 bytes</text>
+</g>
+<g class="fragment scalar-word-transfer" data-fragment-index="1">
+<path d="M378 208 H482 M471 200 L482 208 L471 216" class="v-line v-green"/>
+<text x="430" y="132" class="v-small v-green" text-anchor="middle"><tspan x="430">4-byte</tspan><tspan x="430" dy="27">read</tspan></text>
+<rect x="495" y="32" width="330" height="245" rx="7" class="v-box v-tag-a"/>
+<text x="660" y="72" class="v-large" text-anchor="middle">Decoder state</text>
+<rect x="515" y="98" width="290" height="158" rx="5" class="v-box v-window"/>
+<text x="660" y="129" class="v-small" text-anchor="middle"><tspan x="660">Safe 512-byte window</tspan><tspan x="660" dy="28">within one tag region</tspan></text>
+<rect x="540" y="180" width="240" height="58" rx="5" class="v-box v-good scalar-received-word"/>
+<text x="660" y="216" text-anchor="middle">Those 4 bytes</text>
+<g class="scalar-word-token" aria-hidden="true"><rect x="343" y="191" width="54" height="34" rx="17" class="v-box v-good"/><text x="370" y="214" class="transfer-token-label" text-anchor="middle">4 B</text></g>
+</g>
+<g class="fragment scalar-buffer-copy" data-fragment-index="2">
+<path d="M838 208 H942 M931 200 L942 208 L931 216" class="v-line v-green"/>
+<text x="890" y="132" class="v-small v-green" text-anchor="middle"><tspan x="890">512-byte</tspan><tspan x="890" dy="27">copy</tspan></text>
+<rect x="955" y="98" width="190" height="179" rx="7" class="v-box v-good"/>
+<text x="1050" y="140" class="v-large" text-anchor="middle">Guest</text>
+<text x="1050" y="190" text-anchor="middle"><tspan x="1050">Gets the</tspan><tspan x="1050" dy="30">pointer bits</tspan></text>
+<g class="scalar-window-token" aria-hidden="true"><rect x="795" y="190" width="90" height="36" rx="18" class="v-box v-good"/><text x="840" y="215" class="transfer-token-label" text-anchor="middle">512 B</text></g>
+<text x="580" y="319" class="v-small" text-anchor="middle">This decoder operation avoids source writes; the 512-byte copy stays in decoder state.</text>
+</g>
+</svg>
+<div class="fragment" data-fragment-index="3">
+  <div class="cache-equation" aria-label="Runtime low 32 bits minus known unslid low 32 bits gives the shared-cache slide under the target build's checked bounds">
+    <span>Runtime low 32 bits</span><b>−</b><span>Known unslid low 32 bits</span><b>=</b><strong>Shared-cache slide</strong>
+  </div>
+  <p class="cache-qualification">Same function, same build. Subtract in 32 bits; check the slide’s range and alignment.</p>
+</div>
+
+</section>
+
+<section id="host-staging" class="visual-slide" data-chapter="9">
+<h3>The host already had a buffer we could use.</h3>
+<p class="v-intro">The staging buffer did not have to live in guest RAM.</p><svg class="late-svg" viewBox="0 0 1120 390" role="img" aria-labelledby="host-staging-visual-title">
+<title id="host-staging-visual-title">Before: guest RAM required knowing its host address. After: the first decoder read reveals an existing host buffer, and H9-derived writes put the working data into it.</title>
+<g class="fragment" data-fragment-index="0">
+<text x="270" y="34" class="v-small" text-anchor="middle"><tspan x="270" dy="0">Earlier design</tspan></text>
+<rect x="25" y="60" width="220" height="105" rx="7" class="v-box "/>
+<text x="135.0" y="120.5" class="" text-anchor="middle"><tspan x="135.0" dy="0">Guest RAM</tspan></text>
+<path d="M300,57 L300,175" class="v-line v-dashed"/>
+<text x="302" y="202" class="v-small" text-anchor="middle"><tspan x="302" dy="0">VM boundary</tspan></text>
+<path d="M252,114 L363,114" class="v-line v-red"/>
+<path d="M353,108 L363,114 L353,120" class="v-line v-red"/>
+<rect x="370" y="60" width="220" height="105" rx="7" class="v-box v-fault"/>
+<text x="480.0" y="106.5" class="" text-anchor="middle"><tspan x="480.0" dy="0">Guest memory’s</tspan><tspan x="480.0" dy="29">host address</tspan></text>
+<text x="270" y="260" class="v-red" text-anchor="middle"><tspan x="270" dy="0">Needed an address</tspan><tspan x="270" dy="29">we did not yet have</tspan></text>
+</g>
+<g class="fragment" data-fragment-index="1">
+<text x="865" y="34" class="v-small v-green" text-anchor="middle"><tspan x="865" dy="0">Rebuilt design</tspan></text>
+<rect x="660" y="60" width="435" height="240" rx="7" class="v-box v-host"/>
+<text x="877" y="98" class="" text-anchor="middle"><tspan x="877" dy="0">Host decoder</tspan></text>
+<rect x="707" y="130" width="338" height="96" rx="7" class="v-box v-good"/>
+<text x="876.0" y="166.0" class="" text-anchor="middle"><tspan x="876.0" dy="0">Existing 64 KB buffer</tspan></text>
+<text x="877" y="268" class="v-small v-green" text-anchor="middle"><tspan x="877" dy="0">Pointer from the first read</tspan></text>
+</g>
+<g class="fragment staging-data-write" data-fragment-index="2">
+  <rect x="422" y="309" width="232" height="48" rx="5" class="v-box v-fault"/>
+  <text x="538" y="340" class="staging-data-label" text-anchor="middle">Our working data</text>
+  <path d="M658 333H876V230" pathLength="1" class="v-line v-red staging-write-path"/>
+  <path d="M868 240L876 230L884 240" class="v-line v-red"/>
+  <g class="staging-buffer-contents"><rect x="729" y="183" width="294" height="32" rx="3"/><text x="876" y="206" class="staging-data-region" text-anchor="middle">working data</text></g>
+  <text x="783" y="375" class="v-small v-red" text-anchor="middle">Writes through H9</text>
+</g>
+</svg><p class="v-takeaway fragment" data-fragment-index="2">That removes the guest-RAM mapping dependency.</p>
+
+</section>
+
+<section id="controlled-calls" class="visual-slide" data-chapter="9">
+<h3>PAC still had to accept the calls.</h3>
+<p class="v-definition">PAC — Pointer Authentication Codes</p><p class="v-intro">Protected pointers are authenticated to resist control-flow hijacking.<br>Knowing a function’s address alone is not enough.</p><div class="pac-summary fragment" data-fragment-index="0"><span>Read + write</span><b>→</b><span class="pac-gate">PAC-checked calls</span><b>→</b><span>Working call path</span></div><p class="v-intro fragment" data-fragment-index="1">Pomace already included PAC research, including DarkSword,<br>and guidance for finding candidate JOP gadgets with ipsw.</p><p class="v-takeaway fragment" data-fragment-index="1">My human team lead’s iOS PoC gave the agents<br>a concrete approach to adapt for macOS.</p><p class="v-source fragment" data-fragment-index="1">Public background: <a href="https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain/" target="_blank" rel="noopener noreferrer">DarkSword · Google Threat Intelligence</a></p>
+
+</section>
+
+<section id="live-tag" class="visual-slide" data-chapter="9">
+<h3>Why the call chain has two phases</h3>
+<p class="v-intro">MTE will fault if we use this host object with the wrong tag.<br>The tag comes from the running process.</p>
+<svg class="late-svg live-tag-scene" viewBox="0 0 1120 365" role="img" aria-labelledby="live-tag-visual-title live-tag-visual-desc">
+<title id="live-tag-visual-title">Create the host object, recover its tagged pointer, then use it in phase two</title><desc id="live-tag-visual-desc">Phase one creates the host object needed by the next phase. The guest reads back the object's actual address and MTE memory tag, then uses that same tagged pointer in phase two. A wrong memory tag would fault. The private object identity and pointer-authentication implementation are omitted.</desc>
+<text x="185" y="28" text-anchor="middle">Guest</text><text x="825" y="28" text-anchor="middle">Host process</text><path d="M185 47V354M825 47V354" class="v-line v-dashed"/>
+<g class="fragment tag-prepare" data-fragment-index="0"><path d="M195 88H813M803 82L813 88L803 94" class="v-line v-blue"/><text x="505" y="70" class="v-blue" text-anchor="middle">Phase 1 · create host object</text><rect x="680" y="105" width="290" height="58" rx="7" class="v-box v-host"/><text x="825" y="129" text-anchor="middle">Object exists</text><text x="825" y="151" class="v-small" text-anchor="middle">Tag assigned at runtime</text></g>
+<g class="fragment tag-readback" data-fragment-index="1"><path d="M813 203H195M205 197L195 203L205 209" class="v-line v-green"/><text x="505" y="181" class="v-green" text-anchor="middle">Read its address + MTE tag</text><g class="tag-return-token"><rect x="735" y="212" width="180" height="39" rx="5" class="v-box v-good"/><text x="825" y="239" class="tag-token-label" text-anchor="middle">address + tag</text></g><g class="tag-received"><rect x="83" y="214" width="204" height="39" rx="5" class="v-box v-good"/><text x="185" y="241" class="tag-token-label" text-anchor="middle">Live pointer known</text></g></g>
+<g class="fragment tag-continue" data-fragment-index="2"><path d="M195 300H813M803 294L813 300L803 306" class="v-line v-blue"/><text x="505" y="278" class="v-blue" text-anchor="middle">Phase 2 · use the tagged pointer</text><g class="tag-continue-token"><rect x="95" y="309" width="180" height="39" rx="5" class="v-box v-good"/><text x="185" y="336" class="tag-token-label" text-anchor="middle">address + tag</text></g><text x="825" y="340" class="tag-complete v-small v-green" text-anchor="middle">Correct tag preserved</text></g>
+</svg><p class="v-takeaway fragment" data-fragment-index="2">Recover the live tag and continue with MTE enabled.</p>
+
+</section>
+
+<section id="sandbox-envelope" class="visual-slide" data-chapter="9">
+<h3>The host process was still sandboxed.</h3>
+<p class="v-intro">Controlling the host process did not remove its sandbox policy.</p>
+<svg class="late-svg service-scene" viewBox="0 0 1160 380" role="img" aria-labelledby="sandbox-envelope-visual-title"><title id="sandbox-envelope-visual-title">Direct execution is denied while specific service lookups are permitted</title>
+<rect x="18" y="36" width="338" height="310" rx="7" class="v-box v-sandbox"/><text x="187" y="75" class="v-small v-amber" text-anchor="middle">Sandboxed host process</text><rect x="42" y="112" width="290" height="188" rx="6" class="v-box v-host"/><text x="187" y="215" text-anchor="middle">VirtualMachine.xpc</text>
+<g class="fragment sandbox-denied" data-fragment-index="0"><path d="M364 124H490M478 117L490 124L478 131" pathLength="1" class="v-line v-red sandbox-denied-path"/><text x="430" y="102" class="v-small v-red" text-anchor="middle">Denied</text><rect x="506" y="42" width="624" height="132" rx="7" class="v-box v-fault"/><text x="818" y="97" text-anchor="middle">Direct process execution</text><text x="818" y="132" text-anchor="middle">Arbitrary home writes</text></g>
+<g class="fragment sandbox-allowed" data-fragment-index="1"><path d="M364 268H490M478 261L490 268L478 275" pathLength="1" class="v-line v-green sandbox-allowed-path"/><text x="432" y="246" class="v-small v-green" text-anchor="middle">Lookup</text><rect x="506" y="214" width="624" height="132" rx="7" class="v-box v-good"/><text x="818" y="267" text-anchor="middle">LaunchServices + RunningBoard</text><text x="818" y="305" class="v-small" text-anchor="middle">Specific service connections are allowed</text></g>
+</svg><p class="v-takeaway fragment" data-fragment-index="1">An allowed lookup still needed a usable operation.</p>
+
+</section>
+
+<section id="shared-folder" class="visual-slide" data-chapter="9">
+<h3>Escaping the sandbox · first attempt</h3>
+<p class="v-source">An earlier false finish · June 19</p><svg class="late-svg" viewBox="0 0 1120 350" role="img" aria-labelledby="shared-folder-visual-title">
+<title id="shared-folder-visual-title">Guest access to an already configured shared folder does not establish an unsandboxed host write.</title>
+<g class="fragment" data-fragment-index="0">
+<rect x="25" y="70" width="300" height="140" rx="7" class="v-box "/>
+<text x="175.0" y="148.0" class="" text-anchor="middle"><tspan x="175.0" dy="0">Guest</tspan></text>
+<rect x="765" y="70" width="325" height="140" rx="7" class="v-box "/>
+<text x="927.5" y="148.0" class="" text-anchor="middle"><tspan x="927.5" dy="0">Host</tspan></text>
+<rect x="420" y="100" width="240" height="105" rx="7" class="v-box v-amber-fill"/>
+<text x="540.0" y="146.5" class="" text-anchor="middle"><tspan x="540.0" dy="0">Configured</tspan><tspan x="540.0" dy="29">shared folder</tspan></text>
+<path d="M335,151 L406,151" class="v-line v-amber"/>
+<path d="M396,145 L406,151 L396,157" class="v-line v-amber"/>
+<path d="M753,151 L672,151" class="v-line v-amber"/>
+<path d="M682,145 L672,151 L682,157" class="v-line v-amber"/>
+</g>
+<g class="fragment" data-fragment-index="0">
+<text x="560" y="270" class="v-red" text-anchor="middle"><tspan x="560" dy="0">Ordinary shared access ≠ unsandboxed host access</tspan></text>
+</g>
+</svg><div class="shared-folder-finale false-win-finale fragment" data-fragment-index="1"><picture><source media="(prefers-reduced-motion: reduce), print" srcset="assets/facepalm-naked-gun-poster.jpg"><img src="assets/facepalm-naked-gun.gif" alt="A crowd performs a collective facepalm in The Naked Gun."></picture><blockquote>“Then I noticed what its demo was doing.<br>It was writing to a shared folder.”</blockquote></div>
+
+</section>
+
+<section id="cpu-cache" class="visual-slide" data-chapter="9">
+<h3>Even the app lookup initially failed.</h3>
+<p class="v-intro">LaunchServices checked the CPU architecture before resolving Calculator.</p>
+<svg class="late-svg service-scene cpu-scene" viewBox="0 0 1160 380" role="img" aria-labelledby="cpu-cache-visual-title cpu-cache-visual-desc"><title id="cpu-cache-visual-title">Supply the cached CPU answer while the denied query stays denied</title><desc id="cpu-cache-visual-desc">The sandboxed host process cannot complete the CPU query. The existing memory control sets the correct ARM64 cache value and marks initialization complete. The next app lookup uses that answer and returns an application URL. The sandbox policy does not change.</desc>
+<rect x="18" y="36" width="338" height="310" rx="7" class="v-box v-sandbox"/><text x="187" y="75" class="v-small v-amber" text-anchor="middle">Sandboxed host process</text><text x="187" y="116" text-anchor="middle">VirtualMachine.xpc</text><path d="M42 137H332" class="service-divider"/>
+<g class="fragment cpu-failure" data-fragment-index="0"><text x="48" y="176" class="v-small">LaunchServices cache</text><rect x="42" y="190" width="290" height="120" rx="5" class="v-box v-host"/><text x="58" y="228" class="cpu-field-label">CPU type</text><text x="58" y="282" class="cpu-field-label">Initialized</text><g class="cpu-unprimed"><text x="313" y="228" class="cpu-field-value v-red" text-anchor="end">unknown</text><text x="313" y="282" class="cpu-field-value v-red" text-anchor="end">no</text></g><path d="M364 121H475M463 114L475 121L463 128" pathLength="1" class="v-line v-blue cpu-query-path"/><rect x="490" y="77" width="334" height="87" rx="7" class="v-box v-host"/><text x="657" y="127" text-anchor="middle">Query CPU type</text><path d="M832 121H910M898 114L910 121L898 128" pathLength="1" class="v-line v-red cpu-denial-path"/><rect x="924" y="77" width="205" height="87" rx="7" class="v-box v-fault"/><text x="1026" y="127" text-anchor="middle">Denied</text><text x="811" y="201" class="v-small v-red" text-anchor="middle">Lookup reports the app as unsupported</text></g>
+<g class="fragment cpu-primed" data-fragment-index="1"><text x="313" y="228" class="cpu-field-value v-green" text-anchor="end">ARM64</text><text x="313" y="282" class="cpu-field-value v-green" text-anchor="end">complete</text><path d="M364 280H475M463 273L475 280L463 287" pathLength="1" class="v-line v-green cpu-cached-path"/><rect x="490" y="236" width="334" height="88" rx="7" class="v-box v-good"/><text x="657" y="274" text-anchor="middle">Find Calculator</text><text x="657" y="307" class="v-small" text-anchor="middle">Uses the cached answer</text><path d="M832 280H910M898 273L910 280L898 287" pathLength="1" class="v-line v-green cpu-result-path"/><g class="cpu-url-result"><rect x="924" y="236" width="205" height="88" rx="7" class="v-box v-good"/><text x="1026" y="274" text-anchor="middle">Application</text><text x="1026" y="306" text-anchor="middle">URL</text></g></g>
+</svg><p class="v-takeaway fragment" data-fragment-index="1">The sandbox rule stays in place.</p>
+
+</section>
+
+<section id="service-launch" class="visual-slide" data-chapter="9">
+<h3>Let the app-launch machinery do its job.</h3>
+<p class="v-intro">The permitted service route opens Calculator on the host.</p>
+<svg class="late-svg service-scene launch-scene" viewBox="0 0 1160 380" role="img" aria-labelledby="service-launch-visual-title service-launch-visual-desc"><title id="service-launch-visual-title">A permitted launch request opens Calculator while the original process stays sandboxed</title><desc id="service-launch-visual-desc">The host XPC prepares a real application URL, sends a LaunchServices request through the allowed service route, and Calculator appears on the host desktop. The drawing is illustrative, not a screenshot or new runtime result.</desc>
+<rect x="18" y="36" width="338" height="310" rx="7" class="v-box v-sandbox"/><text x="187" y="75" class="v-small v-amber" text-anchor="middle">Sandboxed host process</text><text x="187" y="116" text-anchor="middle">VirtualMachine.xpc</text><path d="M42 137H332" class="service-divider"/>
+<rect x="865" y="36" width="279" height="310" rx="7" class="service-desktop"/><text x="1004" y="75" class="v-small v-blue" text-anchor="middle">Host desktop</text>
+<g class="fragment" data-fragment-index="0"><rect x="42" y="161" width="290" height="60" rx="5" class="v-box v-host"/><text x="187" y="198" text-anchor="middle">Application URL</text><path d="M187 225V252M181 240L187 252L193 240" class="v-line v-blue"/><rect x="42" y="264" width="290" height="60" rx="5" class="v-box v-host"/><text x="187" y="301" text-anchor="middle">LaunchServices call</text></g>
+<g class="fragment launch-request" data-fragment-index="1"><path d="M364 294H463M451 287L463 294L451 301" pathLength="1" class="v-line v-green launch-request-path"/><rect x="477" y="130" width="315" height="215" rx="7" class="v-box v-good"/><text x="634" y="210" text-anchor="middle">LaunchServices</text><text x="634" y="246" text-anchor="middle">+ RunningBoard</text><text x="634" y="284" class="v-small" text-anchor="middle">app-launch flow</text><g class="launch-request-token"><rect x="256" y="238" width="150" height="39" rx="5" class="v-box v-good"/><text x="331" y="265" class="service-token-label" text-anchor="middle">app URL</text></g></g>
+<g class="fragment launch-result" data-fragment-index="2"><path d="M801 239H850M838 232L850 239L838 246" pathLength="1" class="v-line v-green launch-result-path"/><g class="calculator-window"><rect x="894" y="105" width="222" height="220" rx="10" class="calculator-shell"/><path d="M894 147H1116" class="calculator-divider"/><circle cx="913" cy="126" r="5" fill="#ff6a63"/><circle cx="930" cy="126" r="5" fill="#ffbd44"/><circle cx="947" cy="126" r="5" fill="#5aca62"/><text x="1008" y="133" class="calculator-title" text-anchor="middle">Calculator</text><rect x="908" y="161" width="194" height="49" rx="3" fill="#111820"/><text x="1088" y="197" class="calculator-display" text-anchor="end">0</text><path d="M908 225H1048V311H908Z" fill="#45515f"/><path d="M957 225V311M1004 225V311M908 254H1048M908 283H1048" class="calculator-key-grid"/><rect x="1054" y="225" width="48" height="86" rx="2" fill="#cf8128"/><text x="1078" y="279" class="calculator-equals" text-anchor="middle">=</text></g></g>
+</svg><p class="v-takeaway fragment" data-fragment-index="2">The compromised XPC keeps its sandbox.</p>
+
+</section>
+
+<section id="personal-audit" class="story-slide audit-slide" data-chapter="9" data-story-video=".audit-payoff">
+<h3>I read every line.</h3>
+<div class="story-video-media" hidden>
+  <video data-ignore preload="metadata" muted playsinline poster="assets/audit-flow-cinematic-poster.jpg" aria-label="Illustrative generated video of the same researcher checking his work and relaxing">
+    <source src="assets/audit-flow-cinematic.mp4" type="video/mp4">
+  </video>
+  <img class="story-video-cover" src="assets/audit-flow-poster.jpg" alt="" aria-hidden="true">
+  <span class="story-video-label">Dramatic re-enactment</span>
+  <button class="story-video-play" type="button" hidden>Play clip</button>
+</div>
+<div class="audit-layout">
+<div class="audit-copy">
+<p>I checked for saved host pointers<br>and host-supplied runtime addresses.</p>
+</div>
+<svg class="audit-scene" viewBox="0 0 390 340" role="img" aria-labelledby="audit-relief-title audit-relief-description">
+  <title id="audit-relief-title">The audit is finally over</title>
+  <desc id="audit-relief-description">An illustrated researcher leans tensely over a laptop. On the final advance he leans back, relaxes his face and exhales. This is an illustration of Josh's recollection, not a recorded audit or result.</desc>
+  <path d="M15 318H376" fill="none" stroke="#41546c" stroke-width="2"/>
+  <path d="M254 238h67v20h-67zM284 258v54M251 315h67" fill="#273449" stroke="#687b94" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path class="audit-chair" d="M306 133h27q17 0 17 19v90h-40" fill="#26384b" stroke="#687b94" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M249 241l-13 52-48 12M291 248l23 42 39 12" fill="none" stroke="#526782" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 305h-19M354 303h13" fill="none" stroke="#8b9bb0" stroke-width="13" stroke-linecap="round"/>
+  <g class="audit-person">
+    <path d="M230 130c-27 5-46 31-36 70l24 50h91l-15-72c-7-34-30-52-64-48z" fill="#34475f" stroke="#7186a1" stroke-width="3"/>
+    <g class="audit-head">
+    <path d="M237 113v30q13 11 26-1v-27" fill="#bb8875" stroke="#715c59" stroke-width="3"/>
+    <path d="M211 52c15-18 53-18 73 6 17 21 13 51-1 72-11 17-29 24-47 15-28-14-46-66-25-93z" fill="#d2a28b" stroke="#715c59" stroke-width="3"/>
+    <path d="M209 89c-15-30 1-56 31-62 32-6 59 12 62 43l-26 6-8-18c-17 19-35 29-59 31z" fill="#263045" stroke="#50617a" stroke-width="3"/>
+    <path d="M209 94c-12-8-19 3-12 16 4 8 11 11 20 9" fill="#c4937e" stroke="#715c59" stroke-width="3"/>
+    <path d="M257 92l4 16-7 3" fill="none" stroke="#956e65" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M218 119c8 19 23 30 38 31 20-1 32-15 37-35l-14 10-16 6-21-4z" fill="#394154"/>
+    <g class="audit-tense-face" fill="none" stroke="#51424b" stroke-width="4" stroke-linecap="round"><path d="M225 88l18 5M269 92l16-6M229 100h11M272 100h10"/><path d="M246 127h23" stroke="#edc4aa" stroke-width="3"/></g>
+    <g class="audit-relaxed-face" fill="none" stroke="#51424b" stroke-width="4" stroke-linecap="round"><path d="M224 97q10 8 20 0M269 97q9 8 18 0"/><path d="M249 126q11 9 22-1" stroke="#edc4aa" stroke-width="3"/></g>
+    </g>
+    <path class="audit-arm" d="M218 157l-26 50-64 4" fill="none" stroke="#7186a1" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path class="audit-arm" d="M127 211h-17" fill="none" stroke="#d2a28b" stroke-width="14" stroke-linecap="round"/>
+    <g class="audit-exhale" fill="none" stroke="#94c5cb" stroke-width="3" stroke-linecap="round"><path d="M303 112q24-16 43 0"/><path d="M308 124q29-8 51 8"/></g>
+  </g>
+  <path d="M29 136h132l20 100H50z" fill="#152537" stroke="#7d91ad" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M42 148h108l15 75H59z" fill="#101923"/>
+  <path d="M61 167h42M65 182h65M68 197h38" fill="none" stroke="#527790" stroke-width="4" stroke-linecap="round"/>
+  <path d="M49 236h134l19 8H35z" fill="#708197" stroke="#40536e" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M13 246h213M28 246v71M208 246v71" fill="none" stroke="#637993" stroke-width="7" stroke-linecap="round"/>
+</svg>
+</div>
+<p class="fragment audit-payoff" data-fragment-index="0">Finally, I could relax.</p>
+
+</section>
+
+<section id="demo-section" class="chapter-divider" data-chapter="9">
+<h2>Demo</h2>
+
+</section>
+
+<section class="optional-stack" data-chapter="9">
+<section id="demo" class="story-slide">
+<h3>Demo</h3><p class="opening-line">Guest input → host process</p>
+<p class="dim">Live-demo host and guest: macOS 27.0.1 (26A434)</p>
+<p class="branch-hint"><a href="#/demo-layout">↓ Why a clean layout bail?</a><span class="branch-separator">·</span><a href="#/demo-recording">Recorded run · macOS 26.5.2 (25F84) · 49 seconds</a></p>
+
+</section>
+<section id="demo-layout" class="visual-slide layout-bail-slide">
+<h3>Why a clean layout bail?</h3>
+<p class="v-intro">One byte must work as both part of a pointer and a flag.</p>
+<svg class="late-svg layout-bail-diagram" viewBox="0 0 1160 400" role="img" aria-labelledby="layout-bail-title layout-bail-desc">
+  <title id="layout-bail-title">One pointer byte overlaps the decoder’s histogram-enable bit</title>
+  <desc id="layout-bail-desc">The fake timing object needs an eight-byte buffer pointer at decoder context plus hexadecimal e70. Its fifth byte, at context plus e74, is also tested by the real decoder to enable histogram output. An observed address byte of 0x76 has the required bit clear and is rejected before staging. An observed byte of 0x7a has the bit set and passes this check. Passing the check alone does not prove exploit success.</desc>
+  <text x="30" y="26" class="v-large">Fake timing object</text>
+  <text x="1130" y="26" text-anchor="end" class="v-small">8-byte buffer pointer</text>
+  <rect x="30" y="48" width="1100" height="80" rx="5" class="v-box v-host"/>
+  <path d="M167.5 48V128 M305 48V128 M442.5 48V128 M580 48V128 M717.5 48V128 M855 48V128 M992.5 48V128" class="layout-byte-dividers"/>
+  <rect x="580" y="48" width="137.5" height="80" class="v-amber-fill layout-shared-byte"/>
+  <g class="layout-byte-labels" text-anchor="middle">
+    <text x="98.75" y="99">b0</text><text x="236.25" y="99">b1</text><text x="373.75" y="99">b2</text><text x="511.25" y="99">b3</text>
+    <text x="648.75" y="99" class="v-amber">b4</text><text x="786.25" y="99">b5</text><text x="923.75" y="99">b6</text><text x="1061.25" y="99">b7</text>
+  </g>
+  <text x="30" y="164" class="v-small layout-offset">ctx + 0xe70</text>
+  <path d="M648.75 130V179" class="v-line v-amber"/>
+  <text x="648.75" y="213" text-anchor="middle" class="v-large v-amber">Real decoder: histogram-enable bit</text>
+  <text x="30" y="270" class="v-small">Observed reject</text>
+  <text x="630" y="270" class="v-small">Observed pass</text>
+  <g class="layout-bit-examples">
+    <text x="30" y="313">0x76</text>
+    <text x="220" y="313">0111<tspan class="v-red">0</tspan>110</text>
+    <text x="630" y="313">0x7a</text>
+    <text x="820" y="313">0111<tspan class="v-green">1</tspan>010</text>
+  </g>
+  <text x="30" y="366" class="v-large v-red layout-outcome">Bit clear → clean bail</text>
+  <text x="630" y="366" class="v-large v-green layout-outcome">Bit set → continue</text>
+</svg>
+<p class="v-takeaway">Stop before staging. Restart with a fresh host process. Try again.</p>
+<p class="branch-return"><a href="#/demo">↑ Return to Demo</a> · <a href="#/demo-recording">↓ Recorded run</a> · <a href="#/fixes-section">→ The Fixes</a></p>
+
+</section>
+<section id="demo-recording" data-background-video="assets/vm-break-720p.mp4" data-background-size="contain" data-background-color="#000">
+<p class="footnote">Recorded on macOS 26.5.2 (25F84) · <a href="#/demo">Return to Demo</a> · <a href="#/fixes-section">→ Apple’s fixes</a></p>
+
+</section></section>
+
+<section id="fixes-section" class="chapter-divider" data-chapter="9">
+<h2>The Fixes</h2>
+
+</section>
+
+<section id="h9-fixed" class="bug-slide source-slide h9-fix-slide" data-chapter="9">
+  <h3>How Apple bounded the copy</h3>
+  <p class="source-function"><code>AVE_HEVC_ST_RPS_Retrieve</code></p>
+  <p class="source-caption">macOS 27.2 beta 2 (26B5091g) → beta 3 (26B5101f)<br>Reconstructed C from the binary diff · not Apple source</p>
+  <pre><code class="language-diff" data-trim data-line-numbers="|1-3|4-10" data-fragment-index="0">
++ if ((uint32_t)neg_pics &gt; 16 ||
++     (uint32_t)pos_pics &gt; 16)
++     return -1001;
+  int32_t count = (int32_t)CFArrayGetCount(delta);
+  if (count &gt; 0) {
+-     uint32_t n = (uint32_t)count &amp; 0x7fffffff;
++     uint32_t n = min((uint32_t)count, 16u);
+      for (uint32_t i = 0; i &lt; n; i++)
+          out-&gt;delta_poc_s0[i] = read_s16(delta, i);
+  }
+  </code></pre>
+  <p class="h9-fix-captions"><span class="fragment fade-in-then-out" data-fragment-index="0">Invalid declared picture counts return an error.</span><span class="fragment" data-fragment-index="1">An oversized supplied array now copies at most 16 entries.</span></p>
+  <p class="h9-fix-timeline fragment" data-fragment-index="2"><span>Reported <b>June 4</b></span><span aria-hidden="true">→</span><span>Beta containing the fix <b>October 5</b></span><strong>123 days</strong></p>
+
+</section>
+
+<section id="avd-fixed" class="bug-slide source-slide h9-fix-slide" data-chapter="9">
+  <h3>How Apple removed the pointer leak</h3>
+  <p class="source-function"><code>attachHistogramToIOSurface</code></p>
+  <p class="source-caption">macOS 27.2 beta 3 (26B5101f) → beta 4 (26B5112a)<br>Reconstructed C from the binary diff · not Apple source</p>
+  <pre><code class="language-diff" data-trim data-line-numbers="|1-2|4-6" data-fragment-index="0">
+  // Decoder-state creation
++ arc4random_buf(&amp;ctx-&gt;histogram_id, 8);
+
+  // Histogram header
+- blob-&gt;identifier = (uint64_t)ctx;
++ blob-&gt;identifier = ctx-&gt;histogram_id;
+  blob-&gt;frame_index = frame_index;
+  // Existing histogram data and publication
+  IOSurfaceSetDataProperty(surface, 2, 544, blob);
+  </code></pre>
+  <p class="h9-fix-captions"><span class="fragment fade-in-then-out" data-fragment-index="0">Create an eight-byte random identifier.</span><span class="fragment" data-fragment-index="1">Return that identifier instead of the live heap address.</span></p>
+  <p class="h9-fix-timeline fragment" data-fragment-index="2"><span>Reported <b>July 7</b></span><span aria-hidden="true">→</span><span>Beta containing the fix <b>October 13</b></span><strong>98 days</strong></p>
+
+</section>
+
+<section id="ios-goal-coda" class="story-slide hexacon-coda" data-chapter="9">
+<p class="eyebrow">Hexacon · Paris · October 16, 2026</p>
+<h3>The original iOS goal</h3>
+<div class="hexacon-layout">
+  <div class="hexacon-copy">
+    <p class="hexacon-main">Calif demonstrated an iOS full chain.<br>H9 was one of the bugs it used.</p>
+    <p class="dim">Signal 1-click · iMessage<br>Persistence before first unlock</p>
+    <div class="hexacon-post">
+      <p class="hexacon-author"><a href="https://x.com/bellis1000/status/2111028042495824337" target="_blank" rel="noopener noreferrer">Billy Ellis <span>@bellis1000</span></a></p>
+      <blockquote>“At #hexacon - Calif.io demos iOS 27.0.1 untethered jailbreak on iPhone 18 Pro”</blockquote>
+      <p class="hexacon-links"><a href="https://x.com/bellis1000/status/2111028042495824337" target="_blank" rel="noopener noreferrer">Original post</a> · <a href="https://blog.calif.io/p/iphone" target="_blank" rel="noopener noreferrer">Calif’s demos</a></p>
+    </div>
+  </div>
+  <figure class="hexacon-photo"><a href="https://x.com/bellis1000/status/2111028042495824337" target="_blank" rel="noopener noreferrer"><img src="assets/hexacon-billy-ellis-2026.jpg" alt="Billy Ellis’s photograph of the Hexacon stage, showing the iPhone and terminal during Calif’s demonstration." width="549" height="680"></a><figcaption>Photo: Billy Ellis · October 16</figcaption></figure>
+</div>
+
+</section>
+
+<section id="lessons-section" class="chapter-divider" data-chapter="10">
+<h2>Lessons Learned</h2>
+
+</section>
+
+<section class="optional-stack" data-chapter="10">
+<section id="lessons" class="story-slide">
+<h3>What I’d do differently next time</h3>
+<p>The harness helped the agents keep trying.</p>
+<p>Next time, it needs to make the evidence<br>and the failed attempts just as visible.</p>
+<p class="branch-hint">→ Continue · ↓ Optional: the macOS 27.0 port · 2 slides</p>
+
+</section>
+
+<section id="port-start" data-chapter="10" class="bug-slide port-compact">
+  <p class="port-context">Optional port · macOS 27.0 (26A428)</p>
+  <h3>Both bugs remained. The layout changed.</h3>
+  <p class="port-intro">I went to record the demo. The chain failed,<br>even though both bugs still triggered.</p>
+  <div class="write-payload port-write fragment" data-fragment-index="0" aria-label="The sixteen-byte write now corrupts the adjacent logging pointer">
+    <div><b>First 8 bytes</b><span>The pointer we need<br>to change</span></div>
+    <div class="collateral"><b>Next 8 bytes</b><span>Clobber a debug-log<br><code>FILE*</code></span></div>
+  </div>
+  <p class="port-impact fragment" data-fragment-index="0">The next decode used that damaged pointer and crashed.</p>
+  <p class="port-takeaway fragment" data-fragment-index="1">Updating the offsets was not enough.<br>The known <code>FPS::Add</code> write could not repair it.</p>
+  <p class="branch-return"><a href="#/lessons">↩ Return to lessons</a> · <a href="#/check-success">Continue the main talk →</a></p>
+
+</section>
+
+<section id="port-reset" data-chapter="10" class="bug-slide port-compact">
+  <p class="port-context">Optional port · macOS 27.0 (26A428)</p>
+  <h3>A fresh agent found another operation.</h3>
+  <p class="port-intro">It re-read the disassembly and found <code>FPS::Reset</code>,<br>another reachable encoder method.</p>
+  <div class="port-repairs fragment" data-fragment-index="0" aria-label="Two reset operations clear the damaged fields">
+    <div><span>Debug-log pointer</span><strong>0</strong></div>
+    <div><span>Output-emit array field</span><strong>0</strong></div>
+  </div>
+  <p class="port-takeaway fragment accent2" data-fragment-index="1">Two reset operations repair the state.<br>The read works again.</p>
+  <p class="branch-return"><a href="#/lessons">↩ Return to lessons</a> · <a href="#/check-success">Continue the main talk →</a></p>
+
+</section>
+
+</section>
+
+<section id="check-success" class="visual-slide" data-chapter="10">
+<h3>I had rules. I still had to check the run.</h3>
+<div class="lesson-proof"><div class="lesson-past fragment" data-fragment-index="0"><span class="v-label">What I had to catch</span><ul><li>Shared-folder write</li><li>Host-supplied memory mapping</li><li>Crashes and VM restarts</li></ul></div><div class="lesson-next fragment" data-fragment-index="1"><span class="v-label">What the next harness should record</span><ul><li>Boundary actually crossed</li><li>Runtime address provenance</li><li>Starting state + outside inputs</li><li>Failures + VM health</li></ul></div></div>
+<div class="paw-takeaway fragment" data-fragment-index="1">
+  <div class="paw-copy">
+    <blockquote>“Think of it like making a wish on a monkey’s paw.”</blockquote>
+    <p class="paw-update fragment" data-fragment-index="2">Or the updated version, the One Wish Willow.</p>
+  </div>
+  <div class="paw-media-stack">
+    <figure class="paw-clip paw-original fragment fade-out" data-fragment-index="2">
+      <picture><source media="(prefers-reduced-motion: reduce), print" srcset="assets/monkeys-paw-tenor-poster.jpg"><img src="assets/monkeys-paw-tenor.gif" width="640" height="488" alt="A finger curls on a cartoon monkey’s paw."></picture>
+    </figure>
+    <figure id="wish-sequence" class="paw-clip paw-obsession wish-sequence fragment" data-fragment-index="2" aria-label="The One Wish Willow package, followed by Nikki’s ‘don’t do that’ reaction.">
+      <video id="wish-intro" class="wish-intro" data-ignore muted playsinline preload="auto" poster="assets/one-wish-willow-poster.jpg" aria-label="The One Wish Willow package turns over."><source src="assets/one-wish-willow-intro.mp4" type="video/mp4"></video>
+      <div class="wish-reaction"><picture><source media="(prefers-reduced-motion: reduce), print" srcset="assets/obsession-nikki-no-tenor-poster.jpg"><img src="assets/obsession-nikki-no-tenor.gif" width="450" height="450" alt="Nikki says, ‘No, no, no, no, don’t do that!’ in Obsession."></picture></div>
+    </figure>
+  </div>
+</div>
+
+</section>
+
+<section id="uncertainty-handoff" class="visual-slide" data-chapter="10">
+<h3>A guess came back as a fact.</h3>
+<svg class="late-svg handoff-scene" viewBox="0 0 1160 360" role="img" aria-labelledby="uncertainty-handoff-visual-title handoff-desc">
+<title id="uncertainty-handoff-visual-title">A result reaches the next agent while its qualification is left behind</title><desc id="handoff-desc">An uncertainty label is attached to the worker's result. On the next advance, a labeled analysis token travels to the next agent, but the qualification stays behind. The next plan treats the result as settled. The labels are editorial, not a reconstructed message or a claim about internal model beliefs.</desc>
+<g class="fragment" data-fragment-index="0"><rect x="18" y="45" width="314" height="253" rx="7" class="v-box v-host"/><text x="175" y="85" class="v-large" text-anchor="middle">Worker’s analysis</text><g class="handoff-source-result"><rect x="43" y="114" width="264" height="129" rx="5" class="handoff-result-card"/><text x="175" y="164" text-anchor="middle">Qualified</text><text x="175" y="198" text-anchor="middle">result</text></g><g class="handoff-qualification"><rect x="65" y="220" width="220" height="45" rx="4" class="v-box v-amber-fill"/><text x="175" y="251" class="handoff-tag-label" text-anchor="middle">Uncertainty</text></g></g>
+<g class="fragment handoff-delivery" data-fragment-index="1"><path d="M347 170H796M784 163L796 170L784 177" pathLength="1" class="v-line v-amber handoff-result-path"/><text x="570" y="140" class="v-small" text-anchor="middle">Handoff</text><g class="handoff-result-token"><rect x="265" y="181" width="150" height="43" rx="5" class="handoff-result-card"/><text x="340" y="211" class="handoff-token-label" text-anchor="middle">Analysis</text></g><path d="M347 268H658" class="v-line v-dashed v-amber handoff-lost-path"/><path d="M664 261L678 275M678 261L664 275" class="v-line v-amber handoff-stop"/><text x="574" y="322" class="v-small v-amber handoff-lost-caption" text-anchor="middle">Qualification left behind</text><g class="handoff-target"><rect x="812" y="45" width="330" height="253" rx="7" class="v-box v-fault"/><text x="977" y="93" class="v-large" text-anchor="middle">Next agent’s plan</text><text x="977" y="181" text-anchor="middle">Treated as</text><text x="977" y="215" text-anchor="middle">settled</text></g></g>
+</svg><p class="v-takeaway fragment" data-fragment-index="1">I pushed for runtime checks of the assumptions we were building on.</p>
+
+</section>
+
+<section id="preserve-uncertainty" class="visual-slide" data-chapter="10">
+<h3>Keep the evidence with the answer.</h3>
+<p class="handoff-reminder fragment" data-fragment-index="0">Pass on what was proved and what still needs checking.</p>
+<div class="handoff-next fragment" data-fragment-index="1"><p class="v-label">The next handoff</p><ul class="handoff-checklist"><li>Question + assumptions</li><li>Observation + source</li><li>Confidence + limits</li><li>What still needs a runtime check</li></ul></div>
+<p class="v-takeaway fragment" data-fragment-index="1">When a check contradicts the answer, update the shared record.</p>
+
+</section>
+
+<section id="reconsider-question" class="visual-slide" data-chapter="10">
+<h3>We were grinding on the wrong question.</h3>
+<div class="lesson-proof"><div class="lesson-past fragment" data-fragment-index="0"><span class="v-label">The question we kept repeating</span><h4>How do we find the host address<br>of guest memory?</h4><p>Our working data lived in the guest, so the host needed its address.</p></div><div class="lesson-next fragment" data-fragment-index="1"><span class="v-label">The question that opened the design</span><h4>Could we keep our data<br>in a host buffer instead?</h4><p>My team lead helped us rethink that dependency.</p></div></div><p class="v-takeaway fragment" data-fragment-index="1">Next time: bring that review in earlier,<br>then test smaller design questions with the agents.</p>
+
+</section>
+
+<section id="credits" class="story-slide" data-chapter="10">
+<h3>Who did what</h3>
+<div class="credit-rows"><p><b>me</b><span>tools, platform knowledge, direction,<br>resources, and the audit</span></p>
+<p><b>team lead</b><span>expert assessment, his PoC,<br>the questions, design guidance</span></p>
+<p><b>the agents</b><span>search, analysis, experiments,<br>implementation</span></p></div>
+
+</section>
+
+<section id="close" class="story-slide branded-slide" data-chapter="10">
+<h3>What I wanted to pass on</h3>
+<blockquote>“I tried a lot of things and failed in a lot of different ways.”</blockquote>
+<p>The experiment became a working VM escape.<br>Next time, I want each attempt to leave evidence<br>I can check and use to choose the next step.</p>
+<p class="footnote">@blacktop__ · github.com/blacktop/ipsw</p>
+<img class="calif-logo" src="https://calif.io/logo-2.f23cf018.svg" alt="Calif" width="160" height="64">
+
+</section>
+
+<section id="questions" class="story-slide branded-slide questions-slide" data-chapter="10">
+<div class="questions-copy"><h3>Thank you</h3><p>Questions?</p></div>
+<p class="footnote">@blacktop__ · github.com/blacktop/ipsw</p>
+<img class="calif-logo" src="https://calif.io/logo-2.f23cf018.svg" alt="Calif" width="160" height="64">
+
+</section>
+
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/plugin/highlight/highlight.min.js"></script>
+
+
+<script src="wish-sequence.js?revision=20261026-1"></script>
+<script src="story-videos.js?revision=20261026-2"></script>
+<script>
+  const deckReady = Reveal.initialize({
+    hash: true, controls: true, controlsTutorial: true, controlsLayout: 'edges', controlsBackArrows: 'hidden', progress: true, slideNumber: 'c/t',
+    width: 1280, height: 720, margin: 0.04, minScale: 0.5, maxScale: 2.5,
+    center: false,
+    disableLayout: false,
+    transition: 'none',
+    autoAnimateDuration: 0.6, autoAnimateEasing: 'cubic-bezier(.2,.7,.2,1)',
+    plugins: [ RevealHighlight, RevealWishSequence, RevealStoryVideos ],
+  });
+
+
+  const kazooReaction = document.getElementById('kazoo-reaction');
+  const kazooVideo = document.getElementById('kazoo-video');
+  const kazooPlay = document.getElementById('kazoo-play');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let kazooShowing = false;
+  function isKazooShowing() {
+    return Reveal.getCurrentSlide()?.id === 'tmux-refusals'
+      && kazooReaction.classList.contains('current-fragment');
+  }
+  function playKazooReaction() {
+    kazooPlay.hidden = false;
+    delete kazooReaction.dataset.playbackError;
+    kazooVideo.currentTime = 0;
+    kazooVideo.play().catch(error => {
+      if (!isKazooShowing() || reducedMotion.matches) return;
+      kazooReaction.dataset.playbackError = error.name;
+      kazooPlay.hidden = false;
+    });
+  }
+  function syncKazooReaction() {
+    const showing = isKazooShowing() && !reducedMotion.matches;
+    if (!showing) {
+      kazooVideo.pause();
+      kazooVideo.currentTime = 0;
+      kazooPlay.hidden = true;
+      kazooShowing = false;
+      return;
+    }
+    if (kazooShowing) return;
+    kazooShowing = true;
+    playKazooReaction();
+  }
+  kazooPlay.addEventListener('click', event => {
+    event.stopPropagation();
+    if (isKazooShowing() && !reducedMotion.matches) playKazooReaction();
+  });
+  kazooVideo.addEventListener('playing', () => {
+    kazooPlay.hidden = true;
+    delete kazooReaction.dataset.playbackError;
+  });
+  kazooVideo.addEventListener('pause', () => {
+    if (isKazooShowing() && !reducedMotion.matches && !kazooVideo.ended) {
+      kazooPlay.hidden = false;
+    }
+  });
+  kazooVideo.addEventListener('ended', () => {
+    if (!kazooVideo.ended || !isKazooShowing() || reducedMotion.matches) return;
+    Reveal.nextFragment();
+  });
+  ['ready', 'slidechanged', 'fragmentshown', 'fragmenthidden'].forEach(event => {
+    Reveal.on(event, syncKazooReaction);
+  });
+  reducedMotion.addEventListener('change', syncKazooReaction);
+  deckReady.then(syncKazooReaction);
+</script>
+</body>
+</html>
